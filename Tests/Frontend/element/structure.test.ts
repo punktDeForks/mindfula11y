@@ -227,6 +227,41 @@ describe('Structure', () => {
         const pageModule = await build(true);
         expect(pageModule.renderRoot.querySelector('.title')).toBeNull();
         expect(pageModule.renderRoot.querySelector('mindfula11y-notice.status-row')).not.toBeNull();
+        expect(pageModule.renderRoot.querySelector('details')).not.toBeNull();
+    });
+
+    it('renders an identical status row in both surfaces for the same analysis', async () => {
+        const analysis: StructureAnalysis = {
+            headings: { nodes: [], errors: [makeError('heading-1'), makeError('heading-2')] },
+            landmarks: null,
+        };
+        const build = async (collapsible: boolean): Promise<Structure> => {
+            const view = document.createElement('mindfula11y-structure');
+            view.hasHeadingStructureAccess = true;
+            view.collapsible = collapsible;
+            Reflect.set(view, 'analysis', analysis);
+            document.body.append(view);
+            await view.updateComplete;
+            return view;
+        };
+
+        const moduleView = await build(false);
+        const moduleRow = moduleView.renderRoot.querySelector('mindfula11y-notice.status-row');
+        document.body.replaceChildren();
+
+        const pageView = await build(true);
+        const pageRow = pageView.renderRoot.querySelector('mindfula11y-notice.status-row');
+
+        expect(pageRow?.getAttribute('state')).toBe(moduleRow?.getAttribute('state'));
+        // The row's leading <span> carries the label; badges are the .notice.count
+        // spans that follow it — compare each independently of the trailing
+        // chevron, which is collapsible-only and not part of this parity claim.
+        expect(pageRow?.querySelector('span')?.textContent?.trim()).toBe(
+            moduleRow?.querySelector('span')?.textContent?.trim(),
+        );
+        const badgeText = (row: Element | null): (string | undefined)[] =>
+            Array.from(row?.querySelectorAll('.notice.count') ?? []).map((badge) => badge.textContent?.trim());
+        expect(badgeText(pageRow)).toEqual(badgeText(moduleRow));
     });
 
     it('shows a compact spinner row while the first analysis runs', async () => {
@@ -268,5 +303,26 @@ describe('Structure', () => {
 
         expect(view.renderRoot.querySelector('details')?.open).toBe(false);
         expect(clientSetMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps an open disclosure open and mounted across a re-analysis', async () => {
+        clientGetMock.mockReturnValue('1');
+        const view = await renderAnalyzed(true);
+
+        const details = view.renderRoot.querySelector('details');
+        expect(details?.open).toBe(true);
+
+        // A save-triggered re-analysis swaps `analysis` in place; the
+        // disclosure must neither slam shut nor be torn down and recreated.
+        const nextAnalysis: StructureAnalysis = {
+            headings: { nodes: [], errors: [] },
+            landmarks: { nodes: [], errors: [] },
+        };
+        Reflect.set(view, 'analysis', nextAnalysis);
+        await view.updateComplete;
+
+        const detailsAfter = view.renderRoot.querySelector('details');
+        expect(detailsAfter).toBe(details);
+        expect(detailsAfter?.open).toBe(true);
     });
 });

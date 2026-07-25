@@ -46,8 +46,17 @@
         margin-inline-start: auto;
     }
 
-    .toggle {
+    /*
+     * `<summary>` is a full-width block by default; without a width cap the
+     * click target and the :focus-visible ring would extend well past the
+     * `.notice` callout's 70ch cap into empty space. Shrinking to fit-content
+     * (bounded to the available width) keeps the target aligned with what is
+     * actually visible, while staying ≥24px and keyboard-operable.
+     */
+    .disclosure {
         display: block;
+        inline-size: fit-content;
+        max-inline-size: 100%;
         cursor: pointer;
         list-style: none;
 
@@ -58,5 +67,18 @@
 
     .chevron {
         margin-inline-start: auto;
+    }
+
+    /*
+     * The disclosure's collapsible content: `<details>` itself stays
+     * unstyled (Chromium wraps its content in a `::details-content` slot
+     * box, so `display: flex` here would not reach these children), this
+     * wrapper restores the `.structure` column rhythm that moving the
+     * tablist/pills/panels inside `<details>` took them out of.
+     */
+    .body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--mindfula11y-space-xs);
     }
 }

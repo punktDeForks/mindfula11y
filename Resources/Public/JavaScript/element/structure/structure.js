@@ -235,13 +235,9 @@ let Structure = class extends LitElement {
     if (!this.collapsible) {
       return html`${this.renderStatusRow(false)}${content}`;
     }
-    return html`<details
-            class="disclosure"
-            ?open=${this.expanded}
-            @toggle=${(event) => this.handleToggle(event)}
-        >
-            <summary class="toggle">${this.renderStatusRow(true)}</summary>
-            ${content}
+    return html`<details ?open=${this.expanded} @toggle=${(event) => this.handleToggle(event)}>
+            <summary class="disclosure">${this.renderStatusRow(true)}</summary>
+            <div class="body">${content}</div>
         </details>`;
   }
   renderPanel(tab, withTabs) {
@@ -256,10 +252,20 @@ let Structure = class extends LitElement {
       content: view
     });
   }
-  /** Mirrors the native disclosure state back into the component and remembers it. */
+  /**
+   * Mirrors the native disclosure state back into the component and
+   * remembers it. Setting the `open` attribute on first render (restoring
+   * a remembered expansion) queues a toggle task per the HTML spec, so this
+   * also fires once with a state that already matches `expanded` — guard
+   * against writing the (unchanged) value back to storage on every load.
+   */
   handleToggle(event) {
-    this.expanded = event.currentTarget.open;
-    Client.set(EXPANDED_STORAGE_KEY, this.expanded ? "1" : "0");
+    const open = event.currentTarget.open;
+    if (open === this.expanded) {
+      return;
+    }
+    this.expanded = open;
+    Client.set(EXPANDED_STORAGE_KEY, open ? "1" : "0");
   }
   /**
    * The widget's aggregate state in the overview callout's standardized

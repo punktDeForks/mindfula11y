@@ -356,13 +356,9 @@ export class Structure extends LitElement {
         if (!this.collapsible) {
             return html`${this.renderStatusRow(false)}${content}`;
         }
-        return html`<details
-            class="disclosure"
-            ?open=${this.expanded}
-            @toggle=${(event: Event): void => this.handleToggle(event)}
-        >
-            <summary class="toggle">${this.renderStatusRow(true)}</summary>
-            ${content}
+        return html`<details ?open=${this.expanded} @toggle=${(event: Event): void => this.handleToggle(event)}>
+            <summary class="disclosure">${this.renderStatusRow(true)}</summary>
+            <div class="body">${content}</div>
         </details>`;
     }
 
@@ -380,10 +376,20 @@ export class Structure extends LitElement {
         });
     }
 
-    /** Mirrors the native disclosure state back into the component and remembers it. */
+    /**
+     * Mirrors the native disclosure state back into the component and
+     * remembers it. Setting the `open` attribute on first render (restoring
+     * a remembered expansion) queues a toggle task per the HTML spec, so this
+     * also fires once with a state that already matches `expanded` — guard
+     * against writing the (unchanged) value back to storage on every load.
+     */
     private handleToggle(event: Event): void {
-        this.expanded = (event.currentTarget as HTMLDetailsElement).open;
-        Client.set(EXPANDED_STORAGE_KEY, this.expanded ? '1' : '0');
+        const open = (event.currentTarget as HTMLDetailsElement).open;
+        if (open === this.expanded) {
+            return;
+        }
+        this.expanded = open;
+        Client.set(EXPANDED_STORAGE_KEY, open ? '1' : '0');
     }
 
     /**
@@ -445,8 +451,8 @@ export class Structure extends LitElement {
     private renderSummary(): TemplateResult | typeof nothing {
         const findings = aggregateFindings(this.analysis, this.enabledFlags());
         if (findings.length === 0) {
-            // No all-clear message by design: silence means no problems, the
-            // live region still announces the analysis result.
+            // The pill list stays silent when there is nothing to jump to —
+            // the status row already carries the all-clear message.
             return nothing;
         }
         return html`<div class="summary">
