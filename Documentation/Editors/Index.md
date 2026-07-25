@@ -120,4 +120,6 @@ Scanner results come from technical automated checks (axe-core via MindfulAPI). 
 
 In the regular page module, Mindful A11y can display a compact accessibility info box with quick links and issue counts.
 
+The heading and landmark structure appears there as a single status row stating how many structure issues the page has. Select the row to unfold the full structure; the box remembers that choice in your browser, so it stays unfolded on the pages you visit next until you fold it again.
+
 ![Page module header info box showing Mindful A11y issue counts and quick links to open Accessibility module details](../Images/editors-page-module-info-box.png)
