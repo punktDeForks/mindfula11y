@@ -154,8 +154,15 @@ export class Structure extends LitElement {
     @property({ type: Boolean, attribute: 'has-heading-structure-access' }) hasHeadingStructureAccess: boolean = false;
     @property({ type: Boolean, attribute: 'has-landmark-structure-access' }) hasLandmarkStructureAccess: boolean =
         false;
+    /**
+     * Page-module mode: the trees sit behind a disclosure so the widget does
+     * not push the content elements below the fold. Set from Fluid in
+     * Templates/Backend/WebLayout/Overview.html only.
+     */
+    @property({ type: Boolean }) collapsible: boolean = false;
 
     @state() private analysis: StructureAnalysis | null = null;
+    @state() private expanded: boolean = false;
 
     private readonly announcer: LiveAnnouncer = new LiveAnnouncer(this);
     private readonly coordinator: StructureAnalysisCoordinator = StructureAnalysisCoordinator.createDefault();
@@ -211,7 +218,7 @@ export class Structure extends LitElement {
 
     override render(): TemplateResult {
         return html`<div class="structure">
-            ${this.renderHeader()}
+            ${this.collapsible ? nothing : this.renderHeader()}
             ${this.announcer.render()}
             <div class="status-region" role="status">${this.renderError()}</div>
             ${this.renderErrorActions()}
@@ -237,9 +244,13 @@ export class Structure extends LitElement {
             const single = tabs[0];
             return single === undefined ? nothing : this.renderHeading(this.tabLabel(single));
         }
+        return this.renderTablist();
+    }
+
+    private renderTablist(): TemplateResult {
         return this.tabs.renderTablist({
             ariaLabel: lll('mindfula11y.structure'),
-            tabs: tabs.map((tab) => this.tabDescriptor(tab)),
+            tabs: this.enabledTabs().map((tab) => this.tabDescriptor(tab)),
         });
     }
 
@@ -317,12 +328,34 @@ export class Structure extends LitElement {
             return nothing;
         }
         if (this.analysis === null) {
-            return renderLoadingPlaceholder(lll('mindfula11y.structure.analyzing'));
+            // The compact surface matches its sibling <mindfula11y-scan-issue-count>
+            // (spinner in a notice row); the module view matches <mindfula11y-scan> 's
+            // panels (full-width loading placeholder).
+            return this.collapsible
+                ? html`<mindfula11y-notice state="info">
+                      <typo3-backend-spinner slot="icon" size="small"></typo3-backend-spinner>
+                      <span>${lll('mindfula11y.structure.analyzing')}</span>
+                  </mindfula11y-notice>`
+                : renderLoadingPlaceholder(lll('mindfula11y.structure.analyzing'));
         }
 
         const tabs = this.enabledTabs();
-        return html`${this.renderStatusRow()}${this.renderSummary()}
+        // The tablist belongs to the header in module mode; in collapsible mode
+        // there is no header, so it moves in here with the rest of the content.
+        const content = html`${this.collapsible && tabs.length > 1 ? this.renderTablist() : nothing}${this.renderSummary()}
         ${tabs.map((tab) => this.renderPanel(tab, tabs.length > 1))}`;
+
+        if (!this.collapsible) {
+            return html`${this.renderStatusRow(false)}${content}`;
+        }
+        return html`<details
+            class="disclosure"
+            ?open=${this.expanded}
+            @toggle=${(event: Event): void => this.handleToggle(event)}
+        >
+            <summary class="toggle">${this.renderStatusRow(true)}</summary>
+            ${content}
+        </details>`;
     }
 
     private renderPanel(tab: StructureDomain, withTabs: boolean): TemplateResult {
@@ -339,6 +372,11 @@ export class Structure extends LitElement {
         });
     }
 
+    /** Mirrors the native disclosure state back into the component. */
+    private handleToggle(event: Event): void {
+        this.expanded = (event.currentTarget as HTMLDetailsElement).open;
+    }
+
     /**
      * The widget's aggregate state in the overview callout's standardized
      * notice register — the same row shape as the alt-text count and the scan
@@ -348,7 +386,7 @@ export class Structure extends LitElement {
      * repeat the tab badges for the collapsed layout, where the tabs are out
      * of sight.
      */
-    private renderStatusRow(): TemplateResult {
+    private renderStatusRow(withChevron: boolean): TemplateResult {
         const counts = this.totalCounts();
         const present = IMPACT_ORDER.filter((impact) => counts[impact] > 0);
         const worst = present[0];
@@ -371,6 +409,15 @@ export class Structure extends LitElement {
                     `${counts[impact]} ${lll(severityLabelKey(impact))}`,
                 ),
             )}
+            ${
+                withChevron
+                    ? html`<typo3-backend-icon
+                      class="chevron"
+                      identifier=${this.expanded ? 'actions-chevron-down' : 'actions-chevron-right'}
+                      size="small"
+                  ></typo3-backend-icon>`
+                    : nothing
+            }
         </mindfula11y-notice>`;
     }
 

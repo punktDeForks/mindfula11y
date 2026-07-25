@@ -149,4 +149,87 @@ describe('Structure', () => {
         expect(row?.textContent).toContain('mindfula11y.structure.noIssues');
         expect(row?.querySelector('.notice.count')).toBeNull();
     });
+
+    // Builds a rendered widget with a two-domain analysis, so both the tablist
+    // and the findings pills are present and their placement can be asserted.
+    const renderAnalyzed = async (collapsible: boolean): Promise<Structure> => {
+        const analysis: StructureAnalysis = {
+            headings: { nodes: [], errors: [makeError('heading-1')] },
+            landmarks: { nodes: [], errors: [] },
+        };
+        const view = document.createElement('mindfula11y-structure');
+        view.hasHeadingStructureAccess = true;
+        view.hasLandmarkStructureAccess = true;
+        view.collapsible = collapsible;
+        Reflect.set(view, 'analysis', analysis);
+        document.body.append(view);
+        await view.updateComplete;
+        return view;
+    };
+
+    it('keeps the module layout uncollapsed with the tablist above the row', async () => {
+        const view = await renderAnalyzed(false);
+
+        expect(view.renderRoot.querySelector('details')).toBeNull();
+        const tablist = view.renderRoot.querySelector('[role="tablist"]');
+        const row = view.renderRoot.querySelector('mindfula11y-notice.status-row');
+        expect(tablist).not.toBeNull();
+        expect(row).not.toBeNull();
+        // The tablist is rendered by the header, above the body's status row.
+        expect((tablist?.compareDocumentPosition(row as Node) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('collapses the trees behind the status row in the page module', async () => {
+        const view = await renderAnalyzed(true);
+
+        const details = view.renderRoot.querySelector('details');
+        expect(details?.open).toBe(false);
+        // The status row is the disclosure's summary and carries the chevron.
+        const row = details?.querySelector('summary > mindfula11y-notice.status-row');
+        expect(row).not.toBeNull();
+        expect(row?.querySelector('.chevron')?.getAttribute('identifier')).toBe('actions-chevron-right');
+        // Tablist, findings pills and panels all live inside the disclosure.
+        expect(details?.querySelector('[role="tablist"]')).not.toBeNull();
+        expect(details?.querySelector('ul.findings')).not.toBeNull();
+        expect(details?.querySelectorAll('[role="tabpanel"]').length).toBe(2);
+    });
+
+    it('drops the single-domain heading in the page module only', async () => {
+        const analysis: StructureAnalysis = { headings: { nodes: [], errors: [] }, landmarks: null };
+        const build = async (collapsible: boolean): Promise<Structure> => {
+            const view = document.createElement('mindfula11y-structure');
+            view.hasHeadingStructureAccess = true;
+            view.collapsible = collapsible;
+            Reflect.set(view, 'analysis', analysis);
+            document.body.append(view);
+            await view.updateComplete;
+            return view;
+        };
+
+        // One domain, so the module renders its heading instead of a tablist.
+        const module = await build(false);
+        expect(module.renderRoot.querySelector('.title')?.textContent).toContain('mindfula11y.structure.headings');
+        document.body.replaceChildren();
+
+        // Collapsible mode has no header at all — the status row is the identity.
+        const pageModule = await build(true);
+        expect(pageModule.renderRoot.querySelector('.title')).toBeNull();
+        expect(pageModule.renderRoot.querySelector('mindfula11y-notice.status-row')).not.toBeNull();
+    });
+
+    it('shows a compact spinner row while the first analysis runs', async () => {
+        analyzeMock.mockReturnValueOnce(new Promise(() => {}));
+        const view = document.createElement('mindfula11y-structure');
+        view.pageId = 1;
+        view.hasHeadingStructureAccess = true;
+        view.collapsible = true;
+        document.body.append(view);
+        await view.updateComplete;
+
+        expect(view.renderRoot.querySelector('details')).toBeNull();
+        expect(view.renderRoot.querySelector('.placeholder')).toBeNull();
+        const row = view.renderRoot.querySelector('mindfula11y-notice[state="info"]');
+        expect(row?.textContent).toContain('mindfula11y.structure.analyzing');
+        expect(row?.querySelector('typo3-backend-spinner')).not.toBeNull();
+    });
 });

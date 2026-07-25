@@ -84,7 +84,9 @@ let Structure = class extends LitElement {
     this.headingLevel = 2;
     this.hasHeadingStructureAccess = false;
     this.hasLandmarkStructureAccess = false;
+    this.collapsible = false;
     this.analysis = null;
+    this.expanded = false;
     this.announcer = new LiveAnnouncer(this);
     this.coordinator = StructureAnalysisCoordinator.createDefault();
     this.tabs = new TabsController(
@@ -129,7 +131,7 @@ let Structure = class extends LitElement {
   }
   render() {
     return html`<div class="structure">
-            ${this.renderHeader()}
+            ${this.collapsible ? nothing : this.renderHeader()}
             ${this.announcer.render()}
             <div class="status-region" role="status">${this.renderError()}</div>
             ${this.renderErrorActions()}
@@ -151,9 +153,12 @@ let Structure = class extends LitElement {
       const single = tabs[0];
       return single === void 0 ? nothing : this.renderHeading(this.tabLabel(single));
     }
+    return this.renderTablist();
+  }
+  renderTablist() {
     return this.tabs.renderTablist({
       ariaLabel: lll("mindfula11y.structure"),
-      tabs: tabs.map((tab) => this.tabDescriptor(tab))
+      tabs: this.enabledTabs().map((tab) => this.tabDescriptor(tab))
     });
   }
   tabDescriptor(tab) {
@@ -217,11 +222,25 @@ let Structure = class extends LitElement {
       return nothing;
     }
     if (this.analysis === null) {
-      return renderLoadingPlaceholder(lll("mindfula11y.structure.analyzing"));
+      return this.collapsible ? html`<mindfula11y-notice state="info">
+                      <typo3-backend-spinner slot="icon" size="small"></typo3-backend-spinner>
+                      <span>${lll("mindfula11y.structure.analyzing")}</span>
+                  </mindfula11y-notice>` : renderLoadingPlaceholder(lll("mindfula11y.structure.analyzing"));
     }
     const tabs = this.enabledTabs();
-    return html`${this.renderStatusRow()}${this.renderSummary()}
+    const content = html`${this.collapsible && tabs.length > 1 ? this.renderTablist() : nothing}${this.renderSummary()}
         ${tabs.map((tab) => this.renderPanel(tab, tabs.length > 1))}`;
+    if (!this.collapsible) {
+      return html`${this.renderStatusRow(false)}${content}`;
+    }
+    return html`<details
+            class="disclosure"
+            ?open=${this.expanded}
+            @toggle=${(event) => this.handleToggle(event)}
+        >
+            <summary class="toggle">${this.renderStatusRow(true)}</summary>
+            ${content}
+        </details>`;
   }
   renderPanel(tab, withTabs) {
     const busy = this.analyzeTask.status === TaskStatus.PENDING;
@@ -235,6 +254,10 @@ let Structure = class extends LitElement {
       content: view
     });
   }
+  /** Mirrors the native disclosure state back into the component. */
+  handleToggle(event) {
+    this.expanded = event.currentTarget.open;
+  }
   /**
    * The widget's aggregate state in the overview callout's standardized
    * notice register — the same row shape as the alt-text count and the scan
@@ -244,7 +267,7 @@ let Structure = class extends LitElement {
    * repeat the tab badges for the collapsed layout, where the tabs are out
    * of sight.
    */
-  renderStatusRow() {
+  renderStatusRow(withChevron) {
     const counts = this.totalCounts();
     const present = IMPACT_ORDER.filter((impact) => counts[impact] > 0);
     const worst = present[0];
@@ -263,6 +286,11 @@ let Structure = class extends LitElement {
         `${counts[impact]} ${lll(severityLabelKey(impact))}`
       )
     )}
+            ${withChevron ? html`<typo3-backend-icon
+                      class="chevron"
+                      identifier=${this.expanded ? "actions-chevron-down" : "actions-chevron-right"}
+                      size="small"
+                  ></typo3-backend-icon>` : nothing}
         </mindfula11y-notice>`;
   }
   /** Finding totals across the enabled domains — the tab badges' counts, summed. */
@@ -355,8 +383,14 @@ __decorateClass([
   property({ type: Boolean, attribute: "has-landmark-structure-access" })
 ], Structure.prototype, "hasLandmarkStructureAccess", 2);
 __decorateClass([
+  property({ type: Boolean })
+], Structure.prototype, "collapsible", 2);
+__decorateClass([
   state()
 ], Structure.prototype, "analysis", 2);
+__decorateClass([
+  state()
+], Structure.prototype, "expanded", 2);
 Structure = __decorateClass([
   customElement("mindfula11y-structure")
 ], Structure);

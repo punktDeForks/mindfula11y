@@ -36,6 +36,20 @@
         font-weight: 700;
     }
 
+    .toggle {
+        display: block;
+        cursor: pointer;
+        list-style: none;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+    }
+
+    .chevron {
+        margin-inline-start: auto;
+    }
+
     .error-actions {
         display: flex;
         flex-wrap: wrap;
