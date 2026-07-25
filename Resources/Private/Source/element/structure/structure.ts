@@ -321,7 +321,7 @@ export class Structure extends LitElement {
         }
 
         const tabs = this.enabledTabs();
-        return html`${this.renderSummary()}
+        return html`${this.renderStatusRow()}${this.renderSummary()}
         ${tabs.map((tab) => this.renderPanel(tab, tabs.length > 1))}`;
     }
 
@@ -337,6 +337,53 @@ export class Structure extends LitElement {
             busy,
             content: view,
         });
+    }
+
+    /**
+     * The widget's aggregate state in the overview callout's standardized
+     * notice register — the same row shape as the alt-text count and the scan
+     * status. The state follows the worst impact actually present (structure
+     * findings are all axe best practices, so a minor-only page must not read
+     * as loud as a scan with serious violations), and the per-severity counts
+     * repeat the tab badges for the collapsed layout, where the tabs are out
+     * of sight.
+     */
+    private renderStatusRow(): TemplateResult {
+        const counts = this.totalCounts();
+        const present = IMPACT_ORDER.filter((impact) => counts[impact] > 0);
+        const worst = present[0];
+        const total = present.reduce((sum, impact) => sum + counts[impact], 0);
+        return html`<mindfula11y-notice
+            class="status-row"
+            state=${worst === undefined ? 'success' : impactState(worst)}
+        >
+            <span
+                >${
+                    worst === undefined
+                        ? lll('mindfula11y.structure.noIssues')
+                        : lll('mindfula11y.structure.issuesFound', total)
+                }</span
+            >
+            ${present.map((impact) =>
+                renderCountBadge(
+                    impactState(impact),
+                    counts[impact],
+                    `${counts[impact]} ${lll(severityLabelKey(impact))}`,
+                ),
+            )}
+        </mindfula11y-notice>`;
+    }
+
+    /** Finding totals across the enabled domains — the tab badges' counts, summed. */
+    private totalCounts(): Record<ImpactSeverity, number> {
+        const totals: Record<ImpactSeverity, number> = { critical: 0, serious: 0, moderate: 0, minor: 0 };
+        for (const domain of this.enabledTabs()) {
+            const counts = severityCounts(this.analysis, domain);
+            for (const impact of IMPACT_ORDER) {
+                totals[impact] += counts[impact];
+            }
+        }
+        return totals;
     }
 
     private renderSummary(): TemplateResult | typeof nothing {
@@ -393,13 +440,7 @@ export class Structure extends LitElement {
      * best practices; a future higher-impact rule must extend the label).
      */
     private async announceResult(signal: AbortSignal, isRefresh: boolean): Promise<void> {
-        let moderate = 0;
-        let minor = 0;
-        for (const domain of this.enabledTabs()) {
-            const counts = severityCounts(this.analysis, domain);
-            moderate += counts.moderate;
-            minor += counts.minor;
-        }
+        const { moderate, minor } = this.totalCounts();
         const key = isRefresh ? 'mindfula11y.structure.updated' : 'mindfula11y.structure.analyzed';
         await this.announcer.announce(lll(key, moderate, minor), signal);
     }

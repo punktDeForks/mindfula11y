@@ -63,6 +63,12 @@
             <trans-unit id="structure.updated" resname="structure.updated">
                 <source>Page structure updated. Moderate issues: %d; minor issues: %d.</source>
             </trans-unit>
+            <trans-unit id="structure.issuesFound" resname="structure.issuesFound">
+                <source>Page structure — issues found: %d</source>
+            </trans-unit>
+            <trans-unit id="structure.noIssues" resname="structure.noIssues">
+                <source>Page structure — no issues found</source>
+            </trans-unit>
             <trans-unit id="structure.findingCount" resname="structure.findingCount">
                 <source>Count: %d</source>
             </trans-unit>

@@ -51,6 +51,8 @@ final readonly class ModuleLabelService
         'structure.analyzing',
         'structure.analyzed',
         'structure.updated',
+        'structure.issuesFound',
+        'structure.noIssues',
         'structure.retry',
         'structure.error.rendering',
         'structure.error.rendering.description',

@@ -108,4 +108,45 @@ describe('Structure', () => {
         expect(count?.textContent?.trim()).toBe('mindfula11y.structure.findingCount: 2');
         expect(count?.closest('ul.findings')).not.toBeNull();
     });
+
+    it('summarizes the analysis as a standardized status row', async () => {
+        const analysis: StructureAnalysis = {
+            headings: { nodes: [], errors: [makeError('heading-1'), makeError('heading-2')] },
+            landmarks: null,
+        };
+        const view = document.createElement('mindfula11y-structure');
+        view.hasHeadingStructureAccess = true;
+        Reflect.set(view, 'analysis', analysis);
+        document.body.append(view);
+        await view.updateComplete;
+
+        const row = view.renderRoot.querySelector('mindfula11y-notice.status-row');
+
+        // Two moderate findings: the row states the total and is tinted by the
+        // worst present impact, not by a flat warning state.
+        expect(row?.getAttribute('state')).toBe('warning');
+        expect(row?.textContent).toContain('mindfula11y.structure.issuesFound: 2');
+        const badge = row?.querySelector('.notice.count');
+        expect(badge?.textContent).toContain('2');
+        // The disclosure chevron belongs to the collapsible layout only.
+        expect(row?.querySelector('.chevron')).toBeNull();
+    });
+
+    it('reports a clean page as a success row', async () => {
+        const analysis: StructureAnalysis = {
+            headings: { nodes: [], errors: [] },
+            landmarks: null,
+        };
+        const view = document.createElement('mindfula11y-structure');
+        view.hasHeadingStructureAccess = true;
+        Reflect.set(view, 'analysis', analysis);
+        document.body.append(view);
+        await view.updateComplete;
+
+        const row = view.renderRoot.querySelector('mindfula11y-notice.status-row');
+
+        expect(row?.getAttribute('state')).toBe('success');
+        expect(row?.textContent).toContain('mindfula11y.structure.noIssues');
+        expect(row?.querySelector('.notice.count')).toBeNull();
+    });
 });
