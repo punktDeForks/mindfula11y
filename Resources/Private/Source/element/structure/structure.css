@@ -80,5 +80,13 @@
         display: flex;
         flex-direction: column;
         gap: var(--mindfula11y-space-xs);
+
+        /*
+         * The `<summary>` row is a sibling inside `<details>`, not inside
+         * `.structure`'s flex column, so its gap to the content is this
+         * wrapper's own margin — same step, so the expanded widget keeps one
+         * rhythm from the callout down to the tree.
+         */
+        margin-block-start: var(--mindfula11y-space-xs);
     }
 }
