@@ -9,6 +9,7 @@ var __decorateClass = (decorators, target, key, kind) => {
   return result;
 };
 import { Task, TaskStatus } from "@lit/task";
+import Client from "@typo3/backend/storage/client.js";
 import { lll } from "@typo3/core/lit-helper.js";
 import { html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
@@ -55,6 +56,7 @@ const HEADING_TAGS = {
   5: literal`h5`,
   6: literal`h6`
 };
+const EXPANDED_STORAGE_KEY = "mindfula11y-structure-expanded";
 const DOMAINS = {
   headings: {
     labelKey: "mindfula11y.structure.headings",
@@ -86,7 +88,7 @@ let Structure = class extends LitElement {
     this.hasLandmarkStructureAccess = false;
     this.collapsible = false;
     this.analysis = null;
-    this.expanded = false;
+    this.expanded = Client.get(EXPANDED_STORAGE_KEY) === "1";
     this.announcer = new LiveAnnouncer(this);
     this.coordinator = StructureAnalysisCoordinator.createDefault();
     this.tabs = new TabsController(
@@ -254,9 +256,10 @@ let Structure = class extends LitElement {
       content: view
     });
   }
-  /** Mirrors the native disclosure state back into the component. */
+  /** Mirrors the native disclosure state back into the component and remembers it. */
   handleToggle(event) {
     this.expanded = event.currentTarget.open;
+    Client.set(EXPANDED_STORAGE_KEY, this.expanded ? "1" : "0");
   }
   /**
    * The widget's aggregate state in the overview callout's standardized

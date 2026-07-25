@@ -18,6 +18,7 @@
  */
 
 import { Task, type TaskFunctionOptions, TaskStatus } from '@lit/task';
+import Client from '@typo3/backend/storage/client.js';
 import { lll } from '@typo3/core/lit-helper.js';
 import type { CSSResult, PropertyValues, TemplateResult } from 'lit';
 import { html, LitElement, nothing } from 'lit';
@@ -80,6 +81,13 @@ const HEADING_TAGS: Record<number, StaticValue> = {
     5: literal`h5`,
     6: literal`h6`,
 };
+
+/**
+ * localStorage key remembering whether the page-module disclosure is open
+ * (core prefixes it with `t3-`). Shared by every page the editor visits: the
+ * choice is about how the editor works, not about one page's structure.
+ */
+const EXPANDED_STORAGE_KEY: string = 'mindfula11y-structure-expanded';
 
 /** Per-domain analysis slice, before it is narrowed to the concrete heading/landmark shape. */
 type DomainAnalysis = HeadingAnalysis | LandmarkAnalysis;
@@ -162,7 +170,7 @@ export class Structure extends LitElement {
     @property({ type: Boolean }) collapsible: boolean = false;
 
     @state() private analysis: StructureAnalysis | null = null;
-    @state() private expanded: boolean = false;
+    @state() private expanded: boolean = Client.get(EXPANDED_STORAGE_KEY) === '1';
 
     private readonly announcer: LiveAnnouncer = new LiveAnnouncer(this);
     private readonly coordinator: StructureAnalysisCoordinator = StructureAnalysisCoordinator.createDefault();
@@ -372,9 +380,10 @@ export class Structure extends LitElement {
         });
     }
 
-    /** Mirrors the native disclosure state back into the component. */
+    /** Mirrors the native disclosure state back into the component and remembers it. */
     private handleToggle(event: Event): void {
         this.expanded = (event.currentTarget as HTMLDetailsElement).open;
+        Client.set(EXPANDED_STORAGE_KEY, this.expanded ? '1' : '0');
     }
 
     /**

@@ -12,7 +12,11 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { analyzeMock } = vi.hoisted(() => ({ analyzeMock: vi.fn() }));
+const { analyzeMock, clientGetMock, clientSetMock } = vi.hoisted(() => ({
+    analyzeMock: vi.fn(),
+    clientGetMock: vi.fn(),
+    clientSetMock: vi.fn(),
+}));
 
 vi.mock('@typo3/core/lit-helper.js', () => ({
     lll: (key: string, ...args: unknown[]): string => (args.length > 0 ? `${key}: ${args.join(', ')}` : key),
@@ -21,6 +25,9 @@ vi.mock('@typo3/backend/element/icon-element.js', () => ({}));
 vi.mock('@typo3/backend/element/spinner-element.js', () => ({}));
 vi.mock('@typo3/backend/notification.js', () => ({
     default: { error: vi.fn(), success: vi.fn() },
+}));
+vi.mock('@typo3/backend/storage/client.js', () => ({
+    default: { get: clientGetMock, set: clientSetMock },
 }));
 vi.mock('../../../Resources/Private/Source/service/structure/coordinator.js', () => {
     const module = {};
@@ -43,9 +50,14 @@ const makeError = (nodeId: string): StructureError => ({
 });
 
 describe('Structure', () => {
+    clientGetMock.mockReturnValue(null);
+
     afterEach(() => {
         document.body.replaceChildren();
         analyzeMock.mockReset();
+        clientGetMock.mockReset();
+        clientGetMock.mockReturnValue(null);
+        clientSetMock.mockReset();
     });
 
     // Typed `Promise<Structure>`, not `HTMLElement`: callers need `.renderRoot`,
@@ -231,5 +243,30 @@ describe('Structure', () => {
         const row = view.renderRoot.querySelector('mindfula11y-notice[state="info"]');
         expect(row?.textContent).toContain('mindfula11y.structure.analyzing');
         expect(row?.querySelector('typo3-backend-spinner')).not.toBeNull();
+    });
+
+    it('restores a remembered expansion and persists a toggle', async () => {
+        clientGetMock.mockReturnValue('1');
+        const view = await renderAnalyzed(true);
+
+        const details = view.renderRoot.querySelector('details');
+        expect(clientGetMock).toHaveBeenCalledWith('mindfula11y-structure-expanded');
+        expect(details?.open).toBe(true);
+        expect(details?.querySelector('.chevron')?.getAttribute('identifier')).toBe('actions-chevron-down');
+
+        // happy-dom does not implement summary activation; drive the native
+        // state change the way the browser would report it.
+        (details as HTMLDetailsElement).open = false;
+        details?.dispatchEvent(new Event('toggle'));
+        await view.updateComplete;
+
+        expect(clientSetMock).toHaveBeenCalledWith('mindfula11y-structure-expanded', '0');
+    });
+
+    it('defaults to collapsed when nothing is stored', async () => {
+        const view = await renderAnalyzed(true);
+
+        expect(view.renderRoot.querySelector('details')?.open).toBe(false);
+        expect(clientSetMock).not.toHaveBeenCalled();
     });
 });

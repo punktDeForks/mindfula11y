@@ -95,6 +95,20 @@ declare module '@typo3/backend/ajax-data-handler.js' {
     export default ajaxDataHandler;
 }
 
+/**
+ * localStorage-backed client storage. Core prefixes every key with `t3-`;
+ * `get()` returns null for an unset key and for a storage-less environment.
+ */
+declare module '@typo3/backend/storage/client.js' {
+    const client: {
+        get(key: string): string | null;
+        set(key: string, value: string): void;
+        unset(key: string): void;
+        isset(key: string): boolean;
+    };
+    export default client;
+}
+
 /** Side-effect import registering the <typo3-backend-icon> custom element. */
 declare module '@typo3/backend/element/icon-element.js';
 
