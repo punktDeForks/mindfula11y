@@ -150,7 +150,7 @@ const buildTs = async (files) => {
         outbase: sourceDir,
         bundle: false,
         format: 'esm',
-        target: 'es2022',
+        target: 'es2024',
         sourcemap: false,
         tsconfig: path.join(packageRoot, 'tsconfig.json'),
     });
@@ -178,7 +178,7 @@ const buildTs = async (files) => {
             outfile: path.join(outDir, path.relative(sourceDir, entryPoint).replace(/\.ts$/, '.js')),
             bundle: true,
             format: 'esm',
-            target: 'es2022',
+            target: 'es2024',
             minify: true,
             sourcemap: false,
             tsconfig: path.join(packageRoot, 'tsconfig.json'),
