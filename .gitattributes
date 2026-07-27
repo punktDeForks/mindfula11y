@@ -16,5 +16,3 @@
 /tsconfig.json export-ignore
 /biome.json export-ignore
 /stylelint.config.mjs export-ignore
-/AGENTS.md export-ignore
-/CLAUDE.md export-ignore

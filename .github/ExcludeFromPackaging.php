@@ -59,11 +59,9 @@ return [
         'phpunit\.xml\.dist',
         'phpunit\.functional\.xml\.dist',
         'vitest\.config\.ts',
-        // Frontend toolchain configs and agent instructions.
+        // Frontend toolchain configs.
         'tsconfig\.json',
         'biome\.json',
         'stylelint\.config\.mjs',
-        'AGENTS\.md',
-        'CLAUDE\.md',
     ],
 ];
