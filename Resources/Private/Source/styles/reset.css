@@ -53,13 +53,22 @@
         list-style: none;
     }
 
+    /*
+     * Reduced motion is handled per effect, not by a blanket kill:
+     * `prefers-reduced-motion` targets motion (vestibular triggers), and
+     * non-motion effects — color/opacity fades like the structure views'
+     * jump highlight — must keep running for everyone (an instantly-finished
+     * flash would also strip its `animationend`-bound state immediately).
+     * A global `!important` nuke here could never be exempted from
+     * `@layer component` (important declarations invert layer order, so the
+     * reset would always win). Motion effects therefore opt in at their
+     * declaration site under `@media (prefers-reduced-motion: no-preference)`;
+     * programmatic smooth scrolling already checks the preference per call in
+     * `lib/dom.ts`. Only CSS smooth scrolling — pure motion with no opt-in
+     * site — stays globally neutralized.
+     */
     @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
+        * {
             scroll-behavior: auto !important;
         }
     }

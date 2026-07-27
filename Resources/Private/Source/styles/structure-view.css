@@ -61,9 +61,14 @@
 
     .empty-title {
         font-weight: 700;
+        text-wrap: balance;
     }
 
-    /* Focus-jump highlight (reduced motion is globally guarded in reset.css). */
+    /* Focus-jump highlight — a pure background fade, deliberately NOT behind
+       prefers-reduced-motion: the preference targets motion, and this
+       non-motion cue must survive for reduced-motion users (an instantly
+       finished animation would also strip the attribute at once via its
+       animationend cleanup). */
     [data-highlight] {
         animation: flash 1.2s ease-out;
     }
