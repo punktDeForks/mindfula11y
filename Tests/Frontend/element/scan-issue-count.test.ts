@@ -1,0 +1,111 @@
+/*
+ * Mindful A11y extension for TYPO3 integrating accessibility tools into the backend.
+ * Copyright (C) 2026  Mindful Markup, Felix Spittel
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+// @vitest-environment happy-dom
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { loadScanMock } = vi.hoisted(() => ({ loadScanMock: vi.fn() }));
+
+vi.mock('@typo3/core/lit-helper.js', () => ({
+    lll: (key: string, ...args: unknown[]): string => (args.length > 0 ? `${key}: ${args.join(', ')}` : key),
+}));
+vi.mock('@typo3/backend/element/icon-element.js', () => ({}));
+vi.mock('@typo3/backend/element/spinner-element.js', () => ({}));
+vi.mock('../../../Resources/Private/Source/service/scan/api.js', () => {
+    const module = {};
+    Reflect.set(
+        module,
+        'ScanApi',
+        class {
+            loadScan = loadScanMock;
+        },
+    );
+    return module;
+});
+
+import type { ScanIssueCount } from '../../../Resources/Private/Source/element/scan-issue-count/scan-issue-count.js';
+import '../../../Resources/Private/Source/element/scan-issue-count/scan-issue-count.js';
+import type { ScanResult } from '../../../Resources/Private/Source/service/scan/types.js';
+import { ScanStatus } from '../../../Resources/Private/Source/service/scan/types.js';
+
+const completedWith = (totalIssueCount: number): ScanResult => ({
+    status: ScanStatus.Completed,
+    violations: [],
+    totalIssueCount,
+    mode: null,
+    targets: [],
+    progress: null,
+    aiAudit: null,
+    agentFindings: [],
+    updatedAt: null,
+});
+
+/** Mounts the callout for an already stored scan and settles its initial load. */
+const mount = async (): Promise<ScanIssueCount> => {
+    const view = document.createElement('mindfula11y-scan-issue-count');
+    view.scanId = 'scan-1';
+    document.body.append(view);
+    await view.updateComplete;
+    // The load resolves in a microtask after the first update; yield a
+    // macrotask so the settled re-render and its announcement have happened.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await view.updateComplete;
+    return view;
+};
+
+const announcement = (view: ScanIssueCount): string =>
+    view.renderRoot.querySelector('[role="status"]')?.textContent?.trim() ?? '';
+
+describe('ScanIssueCount', () => {
+    beforeEach(() => {
+        document.body.replaceChildren();
+        loadScanMock.mockReset();
+    });
+
+    it('announces the issue total, which the visible row shows only as a badge', async () => {
+        loadScanMock.mockResolvedValue(completedWith(12));
+
+        const view = await mount();
+
+        // The row splits label and count — the label alone says nothing about
+        // how many issues there are.
+        const row = view.renderRoot.querySelector('mindfula11y-notice');
+        expect(row?.getAttribute('count')).toBe('12');
+        expect(row?.textContent).toContain('mindfula11y.scan.issuesFound');
+        // ...so the status message has to carry the number itself.
+        expect(announcement(view)).toBe('mindfula11y.scan.announce.issuesFound: 12');
+    });
+
+    it('distinguishes two scans that differ only in issue count', async () => {
+        // `announceIfChanged` suppresses a repeat of the previous announcement,
+        // so two totals must not produce the same string — otherwise a later
+        // scan of the same page is silently swallowed. Asserted on the strings
+        // themselves rather than by driving the five-second poll.
+        loadScanMock.mockResolvedValue(completedWith(12));
+        const first = announcement(await mount());
+        document.body.replaceChildren();
+
+        loadScanMock.mockResolvedValue(completedWith(30));
+        const second = announcement(await mount());
+
+        expect(first).not.toBe(second);
+        expect(second).toBe('mindfula11y.scan.announce.issuesFound: 30');
+    });
+
+    it('announces a clean scan without a count', async () => {
+        loadScanMock.mockResolvedValue(completedWith(0));
+
+        const view = await mount();
+
+        expect(view.renderRoot.querySelector('mindfula11y-notice')?.hasAttribute('count')).toBe(false);
+        expect(announcement(view)).toBe('mindfula11y.scan.noIssues');
+    });
+});

@@ -49,11 +49,14 @@ describe('scanStatusView', () => {
         });
     });
 
-    it('presents a completed scan with issues as a warning carrying the count argument', () => {
+    it('presents a completed scan with issues as a warning carrying the badge count', () => {
+        // The visible label omits the count (the badge carries it), so the
+        // mapping also names the spoken variant that keeps the number.
         expect(scanStatusView(makeResult(ScanStatus.Completed, { totalIssueCount: 7 }))).toEqual({
             state: 'warning',
             labelKey: 'mindfula11y.scan.issuesFound',
-            labelArgs: [7],
+            announceLabelKey: 'mindfula11y.scan.announce.issuesFound',
+            count: 7,
         });
     });
 

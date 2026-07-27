@@ -23,23 +23,35 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import '@typo3/backend/element/spinner-element.js';
 import { LiveAnnouncer } from '../../lib/live-announcer.js';
-import type { NoticeState } from '../../lib/status-render.js';
+import { renderProgressNotice } from '../../lib/status-render.js';
 import { dispatch } from '../../lib/types.js';
 import { errorView } from '../../service/request-error.js';
 import { ScanApi } from '../../service/scan/api.js';
 import { ScanSessionController } from '../../service/scan/session-controller.js';
+import type { ScanStatusView } from '../../service/scan/status-view.js';
 import { scanStatusView } from '../../service/scan/status-view.js';
 import type { CreateScanDemand, ScanResult } from '../../service/scan/types.js';
 import { ScanStatus } from '../../service/scan/types.js';
 import { baseStyles } from '../../styles/base-styles.js';
 import '../notice/notice.js';
 
-/** How the current scan state is presented. */
-interface StatusView {
-    state: NoticeState;
+/**
+ * The shared scan-status view with its label already localized — the compact
+ * callout adds two states the mapping does not model (loading, load error),
+ * so it carries `text` where `ScanStatusView` carries `labelKey`.
+ */
+interface StatusView extends Omit<ScanStatusView, 'labelKey'> {
     text: string;
-    showSpinner?: boolean;
 }
+
+/**
+ * What the live region says for a status view: the spoken variant the status
+ * mapping provides where the visible label omits the count, otherwise the
+ * visible text. Which statuses need one is the mapping's business — see
+ * `ScanStatusView.announceLabelKey`.
+ */
+const announcementFor = (view: StatusView): string =>
+    view.announceLabelKey === undefined ? view.text : lll(view.announceLabelKey, view.count ?? 0);
 
 /**
  * Compact accessibility-scan status callout: creates or loads a scan, polls
@@ -87,12 +99,12 @@ export class ScanIssueCount extends LitElement {
         if (view === null) {
             return;
         }
-        // Announce settled statuses only when their text actually changed:
-        // polling re-runs the load every five seconds, and the interim generic
-        // loading placeholder or an unchanged status must not reach the live
-        // region.
+        // Announce settled statuses only when their announcement actually
+        // changed: polling re-runs the load every five seconds, and the interim
+        // generic loading placeholder or an unchanged status must not reach the
+        // live region.
         if (!(this.controller.result === null && this.controller.state === 'loading')) {
-            this.announceIfChanged(view.text);
+            this.announceIfChanged(announcementFor(view));
         }
     }
 
@@ -113,7 +125,7 @@ export class ScanIssueCount extends LitElement {
             return { state: 'danger', text: errorView(this.controller.error, 'mindfula11y.scan.error.loading').title };
         }
         if (this.controller.state === 'loading') {
-            return { state: 'info', text: lll('mindfula11y.scan.loading'), showSpinner: true };
+            return { state: 'info', text: lll('mindfula11y.scan.loading'), spinner: true };
         }
         return null;
     }
@@ -124,12 +136,8 @@ export class ScanIssueCount extends LitElement {
         if (result.status === ScanStatus.Failed) {
             return { state: 'danger', text: lll('mindfula11y.scan.error.loading') };
         }
-        const view = scanStatusView(result);
-        return {
-            state: view.state,
-            text: lll(view.labelKey, ...(view.labelArgs ?? [])),
-            ...(view.spinner === true ? { showSpinner: true } : {}),
-        };
+        const { labelKey, ...view } = scanStatusView(result);
+        return { ...view, text: lll(labelKey) };
     }
 
     private handleTransition(previous: ScanStatus | null, result: ScanResult): void {
@@ -150,17 +158,21 @@ export class ScanIssueCount extends LitElement {
     }
 
     private renderView(view: StatusView): TemplateResult {
-        return html`<mindfula11y-notice state=${view.state}>
-            ${
-                view.showSpinner === true
-                    ? html`<typo3-backend-spinner slot="icon" size="small"></typo3-backend-spinner>`
-                    : nothing
-            }
+        // An in-progress scan has nothing to link to yet, so it renders as the
+        // shared progress row instead of the settled status + details link.
+        if (view.spinner === true) {
+            return renderProgressNotice(view.text);
+        }
+        return html`<mindfula11y-notice state=${view.state} count=${view.count ?? nothing}>
             <span>${view.text}</span>
             ${
-                this.scanUri !== '' && view.showSpinner !== true
-                    ? html`<a href=${this.scanUri}>${lll('mindfula11y.general.viewDetails')}</a>`
-                    : nothing
+                this.scanUri === ''
+                    ? nothing
+                    : html`<a slot="trailing" href=${this.scanUri}
+                          >${lll('mindfula11y.general.viewDetails')}<span class="sr-only">
+                              ${lll('mindfula11y.scan')}</span
+                          ></a
+                      >`
             }
         </mindfula11y-notice>`;
     }

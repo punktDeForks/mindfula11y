@@ -24,10 +24,19 @@ import { ScanStatus } from './types.js';
 /** How a scan result's status presents on a `.notice` surface. */
 export interface ScanStatusView {
     state: NoticeState;
-    /** XLF label key; callers localize via `lll(labelKey, ...labelArgs)`. */
+    /** XLF label key; callers localize via `lll(labelKey)`. */
     labelKey: string;
-    /** Substitution arguments the label key expects (e.g. the issue count). */
-    labelArgs?: readonly number[];
+    /**
+     * Label key for a live region, where the visible row's split into label +
+     * count badge does not survive: a spoken "accessibility issues found"
+     * without the number is useless, and two scans differing only in count
+     * would announce identical text and be suppressed as a repeat. Set
+     * together with `count` and localized as `lll(announceLabelKey, count)`;
+     * without it the visible label is what gets announced.
+     */
+    announceLabelKey?: string;
+    /** Issue total, rendered as the notice's shared count badge. */
+    count?: number;
     /** In-progress statuses show a spinner instead of the state icon. */
     spinner?: boolean;
 }
@@ -52,7 +61,12 @@ export function scanStatusView(result: ScanResult): ScanStatusView {
             return { state: 'info', labelKey: 'mindfula11y.scan.status.canceled' };
         default:
             return result.totalIssueCount > 0
-                ? { state: 'warning', labelKey: 'mindfula11y.scan.issuesFound', labelArgs: [result.totalIssueCount] }
+                ? {
+                      state: 'warning',
+                      labelKey: 'mindfula11y.scan.issuesFound',
+                      announceLabelKey: 'mindfula11y.scan.announce.issuesFound',
+                      count: result.totalIssueCount,
+                  }
                 : { state: 'success', labelKey: 'mindfula11y.scan.noIssues' };
     }
 }

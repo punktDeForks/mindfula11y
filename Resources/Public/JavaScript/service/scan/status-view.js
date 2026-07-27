@@ -12,7 +12,12 @@ function scanStatusView(result) {
     case ScanStatus.Canceled:
       return { state: "info", labelKey: "mindfula11y.scan.status.canceled" };
     default:
-      return result.totalIssueCount > 0 ? { state: "warning", labelKey: "mindfula11y.scan.issuesFound", labelArgs: [result.totalIssueCount] } : { state: "success", labelKey: "mindfula11y.scan.noIssues" };
+      return result.totalIssueCount > 0 ? {
+        state: "warning",
+        labelKey: "mindfula11y.scan.issuesFound",
+        announceLabelKey: "mindfula11y.scan.announce.issuesFound",
+        count: result.totalIssueCount
+      } : { state: "success", labelKey: "mindfula11y.scan.noIssues" };
   }
 }
 export {

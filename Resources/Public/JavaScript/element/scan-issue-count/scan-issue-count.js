@@ -13,6 +13,7 @@ import { html, LitElement, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import "@typo3/backend/element/spinner-element.js";
 import { LiveAnnouncer } from "../../lib/live-announcer.js";
+import { renderProgressNotice } from "../../lib/status-render.js";
 import { dispatch } from "../../lib/types.js";
 import { errorView } from "../../service/request-error.js";
 import { ScanApi } from "../../service/scan/api.js";
@@ -21,6 +22,7 @@ import { scanStatusView } from "../../service/scan/status-view.js";
 import { ScanStatus } from "../../service/scan/types.js";
 import { baseStyles } from "../../styles/base-styles.js";
 import "../notice/notice.js";
+const announcementFor = (view) => view.announceLabelKey === void 0 ? view.text : lll(view.announceLabelKey, view.count ?? 0);
 let ScanIssueCount = class extends LitElement {
   constructor() {
     super(...arguments);
@@ -51,7 +53,7 @@ let ScanIssueCount = class extends LitElement {
       return;
     }
     if (!(this.controller.result === null && this.controller.state === "loading")) {
-      this.announceIfChanged(view.text);
+      this.announceIfChanged(announcementFor(view));
     }
   }
   render() {
@@ -68,7 +70,7 @@ let ScanIssueCount = class extends LitElement {
       return { state: "danger", text: errorView(this.controller.error, "mindfula11y.scan.error.loading").title };
     }
     if (this.controller.state === "loading") {
-      return { state: "info", text: lll("mindfula11y.scan.loading"), showSpinner: true };
+      return { state: "info", text: lll("mindfula11y.scan.loading"), spinner: true };
     }
     return null;
   }
@@ -76,12 +78,8 @@ let ScanIssueCount = class extends LitElement {
     if (result.status === ScanStatus.Failed) {
       return { state: "danger", text: lll("mindfula11y.scan.error.loading") };
     }
-    const view = scanStatusView(result);
-    return {
-      state: view.state,
-      text: lll(view.labelKey, ...view.labelArgs ?? []),
-      ...view.spinner === true ? { showSpinner: true } : {}
-    };
+    const { labelKey, ...view } = scanStatusView(result);
+    return { ...view, text: lll(labelKey) };
   }
   handleTransition(previous, result) {
     if (previous !== null && previous !== ScanStatus.Completed && result.status === ScanStatus.Completed) {
@@ -99,10 +97,16 @@ let ScanIssueCount = class extends LitElement {
     void this.announcer.announce(text);
   }
   renderView(view) {
-    return html`<mindfula11y-notice state=${view.state}>
-            ${view.showSpinner === true ? html`<typo3-backend-spinner slot="icon" size="small"></typo3-backend-spinner>` : nothing}
+    if (view.spinner === true) {
+      return renderProgressNotice(view.text);
+    }
+    return html`<mindfula11y-notice state=${view.state} count=${view.count ?? nothing}>
             <span>${view.text}</span>
-            ${this.scanUri !== "" && view.showSpinner !== true ? html`<a href=${this.scanUri}>${lll("mindfula11y.general.viewDetails")}</a>` : nothing}
+            ${this.scanUri === "" ? nothing : html`<a slot="trailing" href=${this.scanUri}
+                          >${lll("mindfula11y.general.viewDetails")}<span class="sr-only">
+                              ${lll("mindfula11y.scan")}</span
+                          ></a
+                      >`}
         </mindfula11y-notice>`;
   }
 };
