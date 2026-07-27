@@ -9,9 +9,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { scanStatusView } from '../../../../Resources/Private/Source/service/scan/status-view.js';
-import type { ScanResult } from '../../../../Resources/Private/Source/service/scan/types.js';
-import { ScanStatus } from '../../../../Resources/Private/Source/service/scan/types.js';
+import { scanStatusView } from '../../../../Resources/Private/Source/lib/scan/status-view.js';
+import type { ScanResult } from '../../../../Resources/Private/Source/lib/scan/types.js';
+import { ScanStatus } from '../../../../Resources/Private/Source/lib/scan/types.js';
 
 const makeResult = (status: ScanStatus, over: Partial<ScanResult> = {}): ScanResult => ({
     status,

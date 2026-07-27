@@ -13,15 +13,16 @@ import { html, LitElement, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import "@typo3/backend/element/spinner-element.js";
 import { LiveAnnouncer } from "../../lib/live-announcer.js";
+import { scanStatusView } from "../../lib/scan/status-view.js";
+import { ScanStatus } from "../../lib/scan/types.js";
 import { renderProgressNotice } from "../../lib/status-render.js";
 import { dispatch } from "../../lib/types.js";
 import { errorView } from "../../service/request-error.js";
 import { ScanApi } from "../../service/scan/api.js";
 import { ScanSessionController } from "../../service/scan/session-controller.js";
-import { scanStatusView } from "../../service/scan/status-view.js";
-import { ScanStatus } from "../../service/scan/types.js";
 import { baseStyles } from "../../styles/base-styles.js";
 import "../notice/notice.js";
+import componentStyles from "./scan-issue-count.css.js";
 const announcementFor = (view) => view.announceLabelKey === void 0 ? view.text : lll(view.announceLabelKey, view.count ?? 0);
 let ScanIssueCount = class extends LitElement {
   constructor() {
@@ -33,6 +34,13 @@ let ScanIssueCount = class extends LitElement {
     this.pageUrlFilter = [];
     this.scanApi = new ScanApi();
     this.announcer = new LiveAnnouncer(this);
+    /**
+     * Custom-state set for the `--empty` host state (styled in the component
+     * stylesheet). Guarded: below Baseline 2024 (`attachInternals` Safari
+     * < 16.4, `CustomStateSet` Safari < 17.4 / Firefox < 126) the host keeps
+     * an empty flex slot — a cosmetic regression, never a crash.
+     */
+    this.states = typeof this.attachInternals === "function" ? this.attachInternals().states ?? null : null;
     this.lastAnnounced = "";
     this.controller = new ScanSessionController(this, {
       service: this.scanApi,
@@ -48,10 +56,11 @@ let ScanIssueCount = class extends LitElement {
   }
   updated() {
     const view = this.statusView();
-    this.toggleAttribute("hidden", view === null);
     if (view === null) {
+      this.states?.add("--empty");
       return;
     }
+    this.states?.delete("--empty");
     if (!(this.controller.result === null && this.controller.state === "loading")) {
       this.announceIfChanged(announcementFor(view));
     }
@@ -110,7 +119,7 @@ let ScanIssueCount = class extends LitElement {
         </mindfula11y-notice>`;
   }
 };
-ScanIssueCount.styles = [...baseStyles];
+ScanIssueCount.styles = [...baseStyles, componentStyles];
 __decorateClass([
   property({ attribute: "scan-id" })
 ], ScanIssueCount.prototype, "scanId", 2);

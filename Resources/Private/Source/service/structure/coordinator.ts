@@ -63,7 +63,7 @@ export class StructureAnalysisCoordinator {
             landmarks: this.mergeDomain(options.landmarks, mobile.landmarks, desktop.landmarks),
         };
         const requests = collectRecordRequests(analysis);
-        const metadata = await this.backend.fetchRecordMetadata(requests, signal);
+        const metadata = await this.backend.fetchRecordMetadata(requests, { signal });
         applyRecordMetadata(analysis, metadata);
         // A superseded run must reject, never resolve: the caller stores the
         // resolved analysis, and a stale result arriving after abort would

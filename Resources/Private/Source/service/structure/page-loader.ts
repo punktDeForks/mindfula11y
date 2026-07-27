@@ -75,7 +75,7 @@ export class RenderedPageLoader {
         // the network response, and `issueTicket()` may still resolve after
         // the caller aborted, so cancellation is rechecked before and after it.
         signal.throwIfAborted();
-        const ticket = await this.service.issueTicket(options.pageId, options.languageId, signal);
+        const ticket = await this.service.issueTicket(options.pageId, options.languageId, { signal });
         signal.throwIfAborted();
 
         const frame = this.createFrame(viewport);
@@ -268,31 +268,24 @@ export class RenderedPageLoader {
         if (pageUrl === null || new URL(pageUrl).origin !== window.location.origin) {
             return framing;
         }
-        // Probe-local controller: the timeout below only rejects the race — it
-        // must also cancel the underlying request, because once this rejection
-        // settles the Lit task into its error state, nothing aborts the run's
-        // signal anymore (@lit/task only aborts PENDING runs), and each Retry
-        // would stack another stalled same-origin request.
-        const probe = new AbortController();
-        let probeTimer: number | undefined;
         try {
             // Bounded by POST_LOAD_GRACE: a hanging probe must not defer the
             // rejection to the outer LOAD_TIMEOUT, which would surface as a
-            // 'timeout' without the recovery pageUrl.
-            const response = await Promise.race([
-                fetch(pageUrl, {
-                    credentials: 'include',
-                    redirect: 'follow',
-                    cache: 'no-store',
-                    signal: AbortSignal.any([signal, probe.signal]),
-                }),
-                new Promise<never>((_, timeoutReject) => {
-                    probeTimer = window.setTimeout(
-                        () => timeoutReject(new Error('Auth probe timed out.')),
-                        POST_LOAD_GRACE,
-                    );
-                }),
-            ]);
+            // 'timeout' without the recovery pageUrl. AbortSignal.timeout
+            // both bounds the wait and cancels the request itself — once this
+            // rejection settles the Lit task into its error state, nothing
+            // aborts the run's signal anymore (@lit/task only aborts PENDING
+            // runs), so a merely-raced timeout would stack a stalled
+            // same-origin request per Retry.
+            const response = await fetch(pageUrl, {
+                credentials: 'include',
+                redirect: 'follow',
+                cache: 'no-store',
+                signal: AbortSignal.any([signal, AbortSignal.timeout(POST_LOAD_GRACE)]),
+            });
+            // The status is all the probe reads; release the body right away
+            // instead of waiting for the timeout signal to cancel it.
+            void response.body?.cancel();
             if (response.status === 401 || response.status === 407) {
                 return new StructureAnalysisError(
                     'auth',
@@ -302,12 +295,8 @@ export class RenderedPageLoader {
                 );
             }
         } catch {
-            // The probe failing adds no information; keep the framing diagnosis.
-        } finally {
-            window.clearTimeout(probeTimer);
-            // Settled either way: cancels the request when the timer won, and
-            // releases the never-read response body when the fetch won.
-            probe.abort();
+            // The probe failing or timing out adds no information; keep the
+            // framing diagnosis.
         }
         return framing;
     }

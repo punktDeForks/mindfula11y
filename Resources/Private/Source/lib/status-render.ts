@@ -31,6 +31,22 @@ import type { StructureViewport } from './structure/types.js';
 import type { ImpactSeverity } from './types.js';
 import { IMPACT_ORDER } from './types.js';
 
+/**
+ * The single implementation of the §5 new-tab link contract: every link that
+ * opens a new tab pairs `rel="noreferrer"` with a visually hidden
+ * "(opens in a new tab)" hint. Divergence at call sites (a missed hint, a
+ * different rel) is exactly what routing them through one helper prevents.
+ */
+export const renderExternalLink = (options: {
+    href: string;
+    content: TemplateResult | string;
+    className?: string;
+}): TemplateResult =>
+    html`<a class=${options.className ?? nothing} href=${options.href} target="_blank" rel="noreferrer">
+        ${options.content}
+        <span class="sr-only">${lll('mindfula11y.general.opensNewTab')}</span>
+    </a>`;
+
 /** Visual state of the shared `.notice` pattern (styles/notice.css). */
 export type NoticeState = 'info' | 'success' | 'warning' | 'serious' | 'danger';
 

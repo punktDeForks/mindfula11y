@@ -46,6 +46,7 @@ describe('RenderedPageLoader', () => {
 
     afterEach(() => {
         vi.useRealTimers();
+        vi.restoreAllMocks();
         vi.unstubAllGlobals();
     });
 
@@ -331,7 +332,25 @@ describe('RenderedPageLoader', () => {
 
     it('falls back to the framing diagnosis when the same-origin probe hangs, aborting the request', async () => {
         vi.useFakeTimers();
-        const fetchMock = vi.fn().mockReturnValue(new Promise(() => {}));
+        // AbortSignal.timeout runs on the platform's internal clock, which
+        // vitest's fake timers do not drive — re-implement it on the mocked
+        // setTimeout so advanceTimersByTimeAsync controls the probe bound.
+        vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number): AbortSignal => {
+            const timeoutController = new AbortController();
+            setTimeout(() => timeoutController.abort(new DOMException('signal timed out', 'TimeoutError')), ms);
+            return timeoutController.signal;
+        });
+        // Model real fetch's abort contract: the request never completes on
+        // its own but rejects once its signal aborts — the probe timeout
+        // cancels the request itself instead of merely racing past it.
+        const fetchMock = vi.fn().mockImplementation(
+            (_url: string, init?: RequestInit): Promise<Response> =>
+                new Promise((_resolve, reject) => {
+                    init?.signal?.addEventListener('abort', () =>
+                        reject(init.signal?.reason ?? new DOMException('aborted', 'AbortError')),
+                    );
+                }),
+        );
         vi.stubGlobal('fetch', fetchMock);
         const controller = new AbortController();
         const loader = createLoader(`${window.location.origin}/hangs?mindfula11y_structure_ticket=tok`);

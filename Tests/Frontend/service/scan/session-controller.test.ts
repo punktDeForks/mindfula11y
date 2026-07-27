@@ -12,12 +12,12 @@
 
 import type { ReactiveControllerHost } from 'lit';
 import { afterEach, describe, expect, it, type Mock, vi } from 'vitest';
+import type { CreateScanDemand, ScanResult } from '../../../../Resources/Private/Source/lib/scan/types.js';
+import { ScanStatus } from '../../../../Resources/Private/Source/lib/scan/types.js';
 import {
     ScanSessionController,
     type ScanSessionOptions,
 } from '../../../../Resources/Private/Source/service/scan/session-controller.js';
-import type { CreateScanDemand, ScanResult } from '../../../../Resources/Private/Source/service/scan/types.js';
-import { ScanStatus } from '../../../../Resources/Private/Source/service/scan/types.js';
 
 const demand: CreateScanDemand = {
     userId: 1,
@@ -241,11 +241,11 @@ describe('ScanSessionController', () => {
 
         controller.hostConnected();
         await flush();
-        const signal = service.loadScan.mock.calls[0]?.[2] as AbortSignal;
-        expect(signal.aborted).toBe(false);
+        const options = service.loadScan.mock.calls[0]?.[2] as { signal: AbortSignal } | undefined;
+        expect(options?.signal.aborted).toBe(false);
 
         controller.hostDisconnected();
-        expect(signal.aborted).toBe(true);
+        expect(options?.signal.aborted).toBe(true);
 
         await vi.advanceTimersByTimeAsync(20000);
         expect(service.loadScan).toHaveBeenCalledTimes(1); // poll timer was cleared

@@ -33,8 +33,23 @@ vi.mock('../../../Resources/Private/Source/service/scan/api.js', () => {
 
 import type { ScanIssueCount } from '../../../Resources/Private/Source/element/scan-issue-count/scan-issue-count.js';
 import '../../../Resources/Private/Source/element/scan-issue-count/scan-issue-count.js';
-import type { ScanResult } from '../../../Resources/Private/Source/service/scan/types.js';
-import { ScanStatus } from '../../../Resources/Private/Source/service/scan/types.js';
+
+/**
+ * happy-dom implements neither `attachInternals` nor `CustomStateSet`. The
+ * component hides its empty host through a `--empty` custom state, so the
+ * shim records each host's state set — the observable contract the custom
+ * state tests assert against (`:state()` matching itself needs a real
+ * browser and is covered by the backend verification pass).
+ */
+const statesByHost = new WeakMap<HTMLElement, Set<string>>();
+HTMLElement.prototype.attachInternals = function (this: HTMLElement): ElementInternals {
+    const states = new Set<string>();
+    statesByHost.set(this, states);
+    return { states } as unknown as ElementInternals;
+};
+
+import type { ScanResult } from '../../../Resources/Private/Source/lib/scan/types.js';
+import { ScanStatus } from '../../../Resources/Private/Source/lib/scan/types.js';
 
 const completedWith = (totalIssueCount: number): ScanResult => ({
     status: ScanStatus.Completed,
@@ -107,5 +122,32 @@ describe('ScanIssueCount', () => {
 
         expect(view.renderRoot.querySelector('mindfula11y-notice')?.hasAttribute('count')).toBe(false);
         expect(announcement(view)).toBe('mindfula11y.scan.noIssues');
+    });
+
+    it('hides an empty host through the --empty custom state, not the hidden attribute', async () => {
+        // No scan id and no demand: there is nothing to show.
+        const view = document.createElement('mindfula11y-scan-issue-count');
+        document.body.append(view);
+        await view.updateComplete;
+
+        expect(statesByHost.get(view)?.has('--empty')).toBe(true);
+        expect(view.hasAttribute('hidden')).toBe(false);
+        expect(loadScanMock).not.toHaveBeenCalled();
+    });
+
+    it('never touches an integrator-set hidden attribute', async () => {
+        loadScanMock.mockResolvedValue(completedWith(3));
+        const view = document.createElement('mindfula11y-scan-issue-count');
+        // The embedding markup owns `hidden`; the component previously
+        // clobbered it on the first update with a result.
+        view.setAttribute('hidden', '');
+        view.scanId = 'scan-1';
+        document.body.append(view);
+        await view.updateComplete;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await view.updateComplete;
+
+        expect(view.hasAttribute('hidden')).toBe(true);
+        expect(statesByHost.get(view)?.has('--empty')).toBe(false);
     });
 });

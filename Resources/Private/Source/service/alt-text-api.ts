@@ -17,8 +17,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-import type { GenerateAltTextDemand } from '../lib/types.js';
+import type { RequestOptions } from './backend-api.js';
 import { postJson } from './backend-api.js';
+
+/** Opaque, HMAC-signed alt-text generation payload serialized into elements by PHP. */
+export type GenerateAltTextDemand = Record<string, unknown>;
 
 interface GenerateAltTextResponse {
     altText?: unknown;
@@ -31,8 +34,8 @@ export class AltTextApi {
      * Throws a RequestError carrying the backend's localized title/description
      * when the endpoint answers with its structured error body.
      */
-    async generateAltText(demand: GenerateAltTextDemand, signal?: AbortSignal): Promise<string> {
-        const data = await postJson<GenerateAltTextResponse>('mindfula11y_alttext_generate', demand, { signal });
+    async generateAltText(demand: GenerateAltTextDemand, options?: RequestOptions): Promise<string> {
+        const data = await postJson<GenerateAltTextResponse>('mindfula11y_alttext_generate', demand, options);
         if (typeof data.altText !== 'string' || data.altText === '') {
             throw new Error('The alt-text endpoint returned no text.');
         }

@@ -65,7 +65,7 @@ describe('StructureAnalysisApi', () => {
                 }),
             });
 
-            await new StructureAnalysisApi().issueTicket(42, 3, new AbortController().signal);
+            await new StructureAnalysisApi().issueTicket(42, 3, { signal: new AbortController().signal });
 
             expect(ajaxPost).toHaveBeenCalledWith({ pageId: 42, languageId: 3 });
             expect(ajaxPost.mock.calls[0]?.[0]).not.toHaveProperty('previewUrl');
@@ -74,7 +74,7 @@ describe('StructureAnalysisApi', () => {
         it('rejects with a ticket error when the backend returns an invalid ticket shape', async () => {
             ajaxPost.mockReturnValue({ resolve: async () => ({ url: 'not-a-url', requestId: 'too-short' }) });
 
-            const issuing = new StructureAnalysisApi().issueTicket(42, 3, new AbortController().signal);
+            const issuing = new StructureAnalysisApi().issueTicket(42, 3, { signal: new AbortController().signal });
 
             await expect(issuing).rejects.toBeInstanceOf(StructureAnalysisError);
             await expect(issuing).rejects.toMatchObject({ code: 'ticket' });
@@ -83,7 +83,7 @@ describe('StructureAnalysisApi', () => {
         it('rejects with a ticket error when the backend AJAX route is not registered', async () => {
             Reflect.set(globalThis, 'TYPO3', { settings: { ajaxUrls: {} } });
 
-            const issuing = new StructureAnalysisApi().issueTicket(42, 3, new AbortController().signal);
+            const issuing = new StructureAnalysisApi().issueTicket(42, 3, { signal: new AbortController().signal });
 
             await expect(issuing).rejects.toBeInstanceOf(StructureAnalysisError);
             await expect(issuing).rejects.toMatchObject({ code: 'ticket' });
@@ -93,7 +93,9 @@ describe('StructureAnalysisApi', () => {
 
     describe('fetchRecordMetadata', () => {
         it('resolves an empty map without a network call when there are no requests', async () => {
-            const metadata = await new StructureAnalysisApi().fetchRecordMetadata([], new AbortController().signal);
+            const metadata = await new StructureAnalysisApi().fetchRecordMetadata([], {
+                signal: new AbortController().signal,
+            });
 
             expect(metadata.size).toBe(0);
             expect(ajaxPost).not.toHaveBeenCalled();
@@ -102,7 +104,9 @@ describe('StructureAnalysisApi', () => {
         it('rejects with an enrich error when the backend returns invalid editing metadata', async () => {
             ajaxPost.mockReturnValue({ resolve: async () => ({ records: 'not-an-array' }) });
 
-            const fetching = new StructureAnalysisApi().fetchRecordMetadata([request(1)], new AbortController().signal);
+            const fetching = new StructureAnalysisApi().fetchRecordMetadata([request(1)], {
+                signal: new AbortController().signal,
+            });
 
             await expect(fetching).rejects.toBeInstanceOf(StructureAnalysisError);
             await expect(fetching).rejects.toMatchObject({ code: 'enrich' });
@@ -111,7 +115,9 @@ describe('StructureAnalysisApi', () => {
         it('rejects with an enrich error when the backend AJAX route is not registered', async () => {
             Reflect.set(globalThis, 'TYPO3', { settings: { ajaxUrls: {} } });
 
-            const fetching = new StructureAnalysisApi().fetchRecordMetadata([request(1)], new AbortController().signal);
+            const fetching = new StructureAnalysisApi().fetchRecordMetadata([request(1)], {
+                signal: new AbortController().signal,
+            });
 
             await expect(fetching).rejects.toBeInstanceOf(StructureAnalysisError);
             await expect(fetching).rejects.toMatchObject({ code: 'enrich' });
@@ -121,10 +127,9 @@ describe('StructureAnalysisApi', () => {
         it('fetches every record when more than one backend batch is required, keyed by table/uid/column', async () => {
             const requests = Array.from({ length: 201 }, (_value, index) => request(index + 1));
 
-            const metadata = await new StructureAnalysisApi().fetchRecordMetadata(
-                requests,
-                new AbortController().signal,
-            );
+            const metadata = await new StructureAnalysisApi().fetchRecordMetadata(requests, {
+                signal: new AbortController().signal,
+            });
 
             expect(ajaxPost).toHaveBeenCalledTimes(2);
             expect(ajaxPost.mock.calls.map(([body]) => body.records.length)).toEqual([200, 1]);

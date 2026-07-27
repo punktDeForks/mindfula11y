@@ -18,9 +18,9 @@
  */
 
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
+import type { CreateScanDemand, ScanResult, ScanStatus } from '../../lib/scan/types.js';
+import { isScanInProgress } from '../../lib/scan/types.js';
 import type { ScanApi } from './api.js';
-import type { CreateScanDemand, ScanResult, ScanStatus } from './types.js';
-import { isScanInProgress } from './types.js';
 
 const POLL_DELAY_MS = 5000;
 
@@ -158,7 +158,7 @@ export class ScanSessionController implements ReactiveController {
         const signal = this.beginOperation();
         this.setState('loading');
         try {
-            const filtered = await this.options.service.loadScan(scanId, this.options.pageUrlFilter(), signal);
+            const filtered = await this.options.service.loadScan(scanId, this.options.pageUrlFilter(), { signal });
             if (signal.aborted) {
                 return;
             }
@@ -171,7 +171,7 @@ export class ScanSessionController implements ReactiveController {
             // only makes sense once we know the stored scan actually is a crawl,
             // so an ordinary page scan never issues the second request.
             if (this.options.withCrawlResult?.() === true && filtered.mode === 'crawl') {
-                const unfiltered = await this.options.service.loadScan(scanId, [], signal);
+                const unfiltered = await this.options.service.loadScan(scanId, [], { signal });
                 if (signal.aborted) {
                     return;
                 }
@@ -208,7 +208,7 @@ export class ScanSessionController implements ReactiveController {
         const signal = this.beginOperation();
         let created: { scanId: string; status: ScanStatus };
         try {
-            created = await this.options.service.createScan(demand, aiAudit, signal);
+            created = await this.options.service.createScan(demand, aiAudit, { signal });
         } catch (error) {
             if (signal.aborted) {
                 return;
@@ -232,7 +232,7 @@ export class ScanSessionController implements ReactiveController {
         const signal = this.beginOperation();
         let failure: unknown = null;
         try {
-            await this.options.service.cancelScan(scanId, signal);
+            await this.options.service.cancelScan(scanId, { signal });
         } catch (error) {
             if (signal.aborted) {
                 return;
@@ -275,7 +275,7 @@ export class ScanSessionController implements ReactiveController {
         this.setState('loading');
         let created: { scanId: string; status: ScanStatus };
         try {
-            created = await this.options.service.createScan(demand, false, signal);
+            created = await this.options.service.createScan(demand, false, { signal });
         } catch (error) {
             if (signal.aborted) {
                 return;

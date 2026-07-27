@@ -33,6 +33,7 @@ import {
     impactState,
     renderCountBadge,
     renderDisclosureMarker,
+    renderExternalLink,
     renderFindingPill,
     renderNoticeBody,
     renderProgressNotice,
@@ -249,11 +250,13 @@ export class Structure extends LitElement {
     }
 
     private tabDescriptor(tab: StructureDomain): TabDescriptor<StructureDomain> {
+        // No disabled state: while the first analysis is pending, renderBody
+        // shows the progress notice without a tablist, so descriptors are only
+        // built once an analysis (or its superseded predecessor) is present.
         return {
             id: tab,
             label: this.tabLabel(tab),
             badge: this.renderTabBadge(severityCounts(this.analysis, [tab])),
-            disabled: this.analysis === null && this.analyzeTask.status === TaskStatus.PENDING,
         };
     }
 
@@ -310,9 +313,11 @@ export class Structure extends LitElement {
             ${
                 pageUrl === undefined
                     ? nothing
-                    : html`<a class="button open-page" href=${pageUrl} target="_blank" rel="noopener">
-                      ${lll('mindfula11y.structure.error.rendering.openPage')}
-                  </a>`
+                    : renderExternalLink({
+                          className: 'button open-page',
+                          href: pageUrl,
+                          content: lll('mindfula11y.structure.error.rendering.openPage'),
+                      })
             }
         </div>`;
     }

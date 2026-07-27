@@ -27,7 +27,7 @@ class RenderedPageLoader {
   }
   async load(viewport, parent, signal, options) {
     signal.throwIfAborted();
-    const ticket = await this.service.issueTicket(options.pageId, options.languageId, signal);
+    const ticket = await this.service.issueTicket(options.pageId, options.languageId, { signal });
     signal.throwIfAborted();
     const frame = this.createFrame(viewport);
     parent.append(frame);
@@ -166,23 +166,14 @@ class RenderedPageLoader {
     if (pageUrl === null || new URL(pageUrl).origin !== window.location.origin) {
       return framing;
     }
-    const probe = new AbortController();
-    let probeTimer;
     try {
-      const response = await Promise.race([
-        fetch(pageUrl, {
-          credentials: "include",
-          redirect: "follow",
-          cache: "no-store",
-          signal: AbortSignal.any([signal, probe.signal])
-        }),
-        new Promise((_, timeoutReject) => {
-          probeTimer = window.setTimeout(
-            () => timeoutReject(new Error("Auth probe timed out.")),
-            POST_LOAD_GRACE
-          );
-        })
-      ]);
+      const response = await fetch(pageUrl, {
+        credentials: "include",
+        redirect: "follow",
+        cache: "no-store",
+        signal: AbortSignal.any([signal, AbortSignal.timeout(POST_LOAD_GRACE)])
+      });
+      void response.body?.cancel();
       if (response.status === 401 || response.status === 407) {
         return new StructureAnalysisError(
           "auth",
@@ -192,9 +183,6 @@ class RenderedPageLoader {
         );
       }
     } catch {
-    } finally {
-      window.clearTimeout(probeTimer);
-      probe.abort();
     }
     return framing;
   }

@@ -1,12 +1,13 @@
 import { isObject } from "../../lib/guards.js";
+import { AiAuditStatus, ScanStatus } from "../../lib/scan/types.js";
+import { IMPACT_ORDER } from "../../lib/types.js";
 import { getJson, postJson } from "../backend-api.js";
 import { RequestError } from "../request-error.js";
-import { AiAuditStatus, ScanStatus } from "./types.js";
 const SCAN_STATUSES = new Set(Object.values(ScanStatus));
 function isScanStatus(value) {
   return typeof value === "string" && SCAN_STATUSES.has(value);
 }
-const IMPACT_SEVERITIES = /* @__PURE__ */ new Set(["critical", "serious", "moderate", "minor"]);
+const IMPACT_SEVERITIES = new Set(IMPACT_ORDER);
 const AI_AUDIT_STATUSES = new Set(Object.values(AiAuditStatus));
 const isNullableString = (value) => value === null || typeof value === "string";
 const isIssue = (value) => isObject(value) && typeof value.id === "number" && isNullableString(value.pageUrl) && isNullableString(value.selector) && isNullableString(value.context);
@@ -23,10 +24,23 @@ function parseScanResult(data) {
   if (!isScanStatus(data.status)) {
     throw new Error(`The get-scan endpoint returned an unrecognized scan status: ${String(data.status)}.`);
   }
-  const violations = data.violations ?? [];
-  if (!(Array.isArray(violations) && violations.every(isViolation))) {
+  const rawViolations = data.violations ?? [];
+  if (!(Array.isArray(rawViolations) && rawViolations.every(isViolation))) {
     throw malformed("violations");
   }
+  const violationsByRule = /* @__PURE__ */ new Map();
+  for (const violation of rawViolations) {
+    const existing = violationsByRule.get(violation.rule.id);
+    if (existing === void 0) {
+      violationsByRule.set(violation.rule.id, violation);
+      continue;
+    }
+    existing.issues.push(...violation.issues);
+    if (IMPACT_ORDER.indexOf(violation.impact) < IMPACT_ORDER.indexOf(existing.impact)) {
+      existing.impact = violation.impact;
+    }
+  }
+  const violations = [...violationsByRule.values()];
   const progress = data.progress ?? null;
   if (progress !== null && !isProgress(progress)) {
     throw malformed("progress");
@@ -67,11 +81,11 @@ class ScanApi {
    * signed fields — it is an editor choice the backend authorizes via page
    * TSConfig, not a server-derived parameter covered by the HMAC.
    */
-  async createScan(createScanDemand, aiAudit = false, signal) {
+  async createScan(createScanDemand, aiAudit = false, options) {
     const data = await postJson(
       "mindfula11y_scan_create",
       { ...createScanDemand, aiAudit },
-      { signal }
+      options
     );
     if (typeof data.scanId !== "string" || data.scanId === "") {
       throw new Error("The create-scan endpoint returned no scan id.");
@@ -82,11 +96,11 @@ class ScanApi {
     return { scanId: data.scanId, status: data.status };
   }
   /** Loads scan results; resolves to null when the scan no longer exists. */
-  async loadScan(scanId, pageUrls = [], signal) {
+  async loadScan(scanId, pageUrls = [], options) {
     let data;
     try {
       const params = pageUrls.length > 0 ? { scanId, pageUrls } : { scanId };
-      data = await getJson("mindfula11y_scan_get", params, { signal });
+      data = await getJson("mindfula11y_scan_get", params, options);
     } catch (error) {
       if (error instanceof RequestError && error.status === 404) {
         return null;
@@ -96,8 +110,8 @@ class ScanApi {
     return parseScanResult(data);
   }
   /** Requests cancellation of a running scan; resolves to the resulting status. */
-  async cancelScan(scanId, signal) {
-    const data = await postJson("mindfula11y_scan_cancel", { scanId }, { signal });
+  async cancelScan(scanId, options) {
+    const data = await postJson("mindfula11y_scan_cancel", { scanId }, options);
     if (!isScanStatus(data.status)) {
       throw new Error(`The cancel-scan endpoint returned an unrecognized scan status: ${String(data.status)}.`);
     }

@@ -28,7 +28,12 @@ export interface StructureAnalysisTicket {
 
 /** Authenticated backend API client for the structure analysis flow. */
 export class StructureAnalysisApi {
-    async issueTicket(pageId: number, languageId: number, signal: AbortSignal): Promise<StructureAnalysisTicket> {
+    async issueTicket(
+        pageId: number,
+        languageId: number,
+        options: { signal: AbortSignal },
+    ): Promise<StructureAnalysisTicket> {
+        const { signal } = options;
         const value = await this.post<unknown>(
             'mindfula11y_structure_ticket_issue',
             'ticket',
@@ -43,8 +48,9 @@ export class StructureAnalysisApi {
 
     async fetchRecordMetadata(
         requests: StructureRecordRequest[],
-        signal: AbortSignal,
+        options: { signal: AbortSignal },
     ): Promise<Map<string, StructureRecordMetadata>> {
+        const { signal } = options;
         const metadata = new Map<string, StructureRecordMetadata>();
         if (requests.length === 0) {
             return metadata;

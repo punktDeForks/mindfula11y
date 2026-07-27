@@ -139,6 +139,9 @@
                 <source>Saving changes</source>
             </trans-unit>
 
+            <trans-unit id="general.opensNewTab" resname="general.opensNewTab">
+                <source>(opens in a new tab)</source>
+            </trans-unit>
             <trans-unit id="general.viewDetails" resname="general.viewDetails">
                 <source>View details</source>
             </trans-unit>
@@ -292,9 +295,6 @@
             </trans-unit>
             <trans-unit id="altText.save.error.description" resname="altText.save.error.description">
                 <source>The change was not stored. Please try again or edit the record directly.</source>
-            </trans-unit>
-            <trans-unit id="altText.opensNewTab" resname="altText.opensNewTab">
-                <source>(opens in a new tab)</source>
             </trans-unit>
             <trans-unit id="altText.imagePreview" resname="altText.imagePreview">
                 <source>Image preview</source>
@@ -889,9 +889,6 @@
             </trans-unit>
             <trans-unit id="scan.helpUrl" resname="scan.helpUrl">
                 <source>How to fix this</source>
-            </trans-unit>
-            <trans-unit id="scan.opensNewTab" resname="scan.opensNewTab">
-                <source>(opens in a new tab)</source>
             </trans-unit>
             <trans-unit id="scan.issueCount" resname="scan.issueCount">
                 <source>%d issue</source>

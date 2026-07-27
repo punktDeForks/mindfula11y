@@ -16,7 +16,7 @@ import "@typo3/backend/element/icon-element.js";
 import "@typo3/backend/element/spinner-element.js";
 import "../notice/notice.js";
 import { LiveAnnouncer } from "../../lib/live-announcer.js";
-import { renderNoticeBody } from "../../lib/status-render.js";
+import { renderExternalLink, renderNoticeBody } from "../../lib/status-render.js";
 import { AltTextApi } from "../../service/alt-text-api.js";
 import { RecordApi } from "../../service/record-api.js";
 import { errorView } from "../../service/request-error.js";
@@ -81,10 +81,7 @@ let AltlessFileReference = class extends LitElement {
       return html`<div class="preview">${image}</div>`;
     }
     return html`<div class="preview">
-            <a href=${this.originalUrl} target="_blank" rel="noreferrer">
-                ${image}
-                <span class="sr-only">${lll("mindfula11y.altText.opensNewTab")}</span>
-            </a>
+            ${renderExternalLink({ href: this.originalUrl, content: image })}
         </div>`;
   }
   renderEditor() {

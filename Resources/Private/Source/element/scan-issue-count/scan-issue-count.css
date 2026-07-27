@@ -1,0 +1,33 @@
+/*
+ * Mindful A11y extension for TYPO3 integrating accessibility tools into the backend.
+ * Copyright (C) 2026  Mindful Markup, Felix Spittel
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+@layer component {
+    /*
+     * Without a scan to show, the host must not occupy layout — siblings are
+     * spaced with flex gap, and an empty block would leave a hole. The state
+     * comes from ElementInternals (`states.add('--empty')`), not from the
+     * component toggling `hidden` on its own host: the `hidden` attribute
+     * belongs to the embedding markup, and self-toggling clobbered an
+     * integrator-set value. The dashed ident keeps older-Chromium
+     * compatibility (pre-125 rejected undashed custom states).
+     */
+    :host(:state(--empty)) {
+        display: none;
+    }
+}

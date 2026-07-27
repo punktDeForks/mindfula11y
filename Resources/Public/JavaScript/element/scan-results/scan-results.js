@@ -11,17 +11,19 @@ var __decorateClass = (decorators, target, key, kind) => {
 import { lll } from "@typo3/core/lit-helper.js";
 import { html, LitElement, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { repeat } from "lit/directives/repeat.js";
 import "@typo3/backend/element/icon-element.js";
 import { scrollIntoViewCentered } from "../../lib/dom.js";
+import { AiAuditStatus } from "../../lib/scan/types.js";
 import {
   IMPACT_ORDER,
   impactState,
   renderDisclosureMarker,
+  renderExternalLink,
   renderFindingPill,
   renderNoticeBody
 } from "../../lib/status-render.js";
 import { safeHttpUrl } from "../../lib/url.js";
-import { AiAuditStatus } from "../../service/scan/types.js";
 import "../notice/notice.js";
 import { baseStyles } from "../../styles/base-styles.js";
 import disclosureStyles from "../../styles/disclosure.css.js";
@@ -85,9 +87,13 @@ let ScanResults = class extends LitElement {
     if (violations.length === 0) {
       return nothing;
     }
-    const sorted = [...violations].sort((a, b) => IMPACT_ORDER.indexOf(a.impact) - IMPACT_ORDER.indexOf(b.impact));
+    const sorted = violations.toSorted((a, b) => IMPACT_ORDER.indexOf(a.impact) - IMPACT_ORDER.indexOf(b.impact));
     return html`<ul class="violations">
-            ${sorted.map((violation) => this.renderViolation(violation))}
+            ${repeat(
+      sorted,
+      (violation) => violation.rule.id,
+      (violation) => this.renderViolation(violation)
+    )}
         </ul>`;
   }
   renderViolation(violation) {
@@ -107,12 +113,15 @@ let ScanResults = class extends LitElement {
                     >
                 </summary>
                 <div class="body">
-                    ${helpUrl !== "#" ? html`<a class="help" href=${helpUrl} target="_blank" rel="noreferrer">
-                                  ${lll("mindfula11y.scan.helpUrl")}
-                                  <span class="sr-only">${lll("mindfula11y.scan.opensNewTab")}</span>
-                              </a>` : nothing}
+                    ${helpUrl !== "#" ? renderExternalLink({
+      className: "help",
+      href: helpUrl,
+      content: lll("mindfula11y.scan.helpUrl")
+    }) : nothing}
                     <ul class="issues">
-                        ${violation.issues.map(
+                        ${repeat(
+      violation.issues,
+      (issue) => issue.id,
       (issue) => html`<li class="issue">
                                 ${this.renderPageUrl(issue.pageUrl)}
                                 ${issue.selector !== null && issue.selector !== "" ? html`<p class="detail">
@@ -145,10 +154,7 @@ let ScanResults = class extends LitElement {
     }
     return html`<p class="detail">
             <span class="detail-label">${lll("mindfula11y.scan.pageUrl")}</span>
-            <a href=${href} target="_blank" rel="noreferrer">
-                ${display}
-                <span class="sr-only">${lll("mindfula11y.scan.opensNewTab")}</span>
-            </a>
+            ${renderExternalLink({ href, content: display })}
         </p>`;
   }
   renderAiReview(result) {
@@ -178,15 +184,7 @@ let ScanResults = class extends LitElement {
         </section>`;
   }
   renderSkillGroups(findings) {
-    const groups = /* @__PURE__ */ new Map();
-    for (const finding of findings) {
-      const group = groups.get(finding.skill);
-      if (group === void 0) {
-        groups.set(finding.skill, [finding]);
-      } else {
-        group.push(finding);
-      }
-    }
+    const groups = Map.groupBy(findings, (finding) => finding.skill);
     return html`${[...groups].map(
       ([skill, skillFindings]) => html`<section class="skill">
                 <h3 class="skill-title">

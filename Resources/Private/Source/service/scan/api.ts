@@ -18,10 +18,19 @@
  */
 
 import { isObject } from '../../lib/guards.js';
+import type {
+    AgentFindingDto,
+    AiAuditDto,
+    CreateScanDemand,
+    ScanProgress,
+    ScanResult,
+    ViolationDto,
+} from '../../lib/scan/types.js';
+import { AiAuditStatus, ScanStatus } from '../../lib/scan/types.js';
+import { IMPACT_ORDER } from '../../lib/types.js';
+import type { RequestOptions } from '../backend-api.js';
 import { getJson, postJson } from '../backend-api.js';
 import { RequestError } from '../request-error.js';
-import type { AgentFindingDto, AiAuditDto, CreateScanDemand, ScanProgress, ScanResult, ViolationDto } from './types.js';
-import { AiAuditStatus, ScanStatus } from './types.js';
 
 const SCAN_STATUSES: ReadonlySet<string> = new Set(Object.values(ScanStatus));
 
@@ -35,8 +44,7 @@ interface CreateScanResponse {
     status?: unknown;
 }
 
-/** Mirrors the ImpactSeverity union in lib/types.ts as a runtime set. */
-const IMPACT_SEVERITIES: ReadonlySet<string> = new Set(['critical', 'serious', 'moderate', 'minor']);
+const IMPACT_SEVERITIES: ReadonlySet<string> = new Set(IMPACT_ORDER);
 const AI_AUDIT_STATUSES: ReadonlySet<string> = new Set(Object.values(AiAuditStatus));
 
 const isNullableString = (value: unknown): value is string | null => value === null || typeof value === 'string';
@@ -109,10 +117,29 @@ function parseScanResult(data: unknown): ScanResult {
     if (!isScanStatus(data.status)) {
         throw new Error(`The get-scan endpoint returned an unrecognized scan status: ${String(data.status)}.`);
     }
-    const violations = data.violations ?? [];
-    if (!(Array.isArray(violations) && violations.every(isViolation))) {
+    const rawViolations = data.violations ?? [];
+    if (!(Array.isArray(rawViolations) && rawViolations.every(isViolation))) {
         throw malformed('violations');
     }
+    // The UI keys violation cards by rule id (keyed repeat() in scan-results)
+    // and axe models violations as one group per rule — but the proxied
+    // scanner payload does not guarantee that. Normalize here so rule-id
+    // uniqueness is an invariant rather than an assumption: duplicate rule
+    // groups merge into one, issues concatenate in order, the worst impact
+    // wins. Rejecting instead would fail a perfectly renderable result.
+    const violationsByRule = new Map<string, ViolationDto>();
+    for (const violation of rawViolations) {
+        const existing = violationsByRule.get(violation.rule.id);
+        if (existing === undefined) {
+            violationsByRule.set(violation.rule.id, violation);
+            continue;
+        }
+        existing.issues.push(...violation.issues);
+        if (IMPACT_ORDER.indexOf(violation.impact) < IMPACT_ORDER.indexOf(existing.impact)) {
+            existing.impact = violation.impact;
+        }
+    }
+    const violations = [...violationsByRule.values()];
     const progress = data.progress ?? null;
     if (progress !== null && !isProgress(progress)) {
         throw malformed('progress');
@@ -163,12 +190,12 @@ export class ScanApi {
     async createScan(
         createScanDemand: CreateScanDemand,
         aiAudit: boolean = false,
-        signal?: AbortSignal,
+        options?: RequestOptions,
     ): Promise<{ scanId: string; status: ScanStatus }> {
         const data = await postJson<CreateScanResponse>(
             'mindfula11y_scan_create',
             { ...createScanDemand, aiAudit },
-            { signal },
+            options,
         );
         if (typeof data.scanId !== 'string' || data.scanId === '') {
             throw new Error('The create-scan endpoint returned no scan id.');
@@ -180,11 +207,11 @@ export class ScanApi {
     }
 
     /** Loads scan results; resolves to null when the scan no longer exists. */
-    async loadScan(scanId: string, pageUrls: string[] = [], signal?: AbortSignal): Promise<ScanResult | null> {
+    async loadScan(scanId: string, pageUrls: string[] = [], options?: RequestOptions): Promise<ScanResult | null> {
         let data: unknown;
         try {
             const params: Record<string, string | string[]> = pageUrls.length > 0 ? { scanId, pageUrls } : { scanId };
-            data = await getJson<unknown>('mindfula11y_scan_get', params, { signal });
+            data = await getJson<unknown>('mindfula11y_scan_get', params, options);
         } catch (error) {
             if (error instanceof RequestError && error.status === 404) {
                 return null;
@@ -195,8 +222,8 @@ export class ScanApi {
     }
 
     /** Requests cancellation of a running scan; resolves to the resulting status. */
-    async cancelScan(scanId: string, signal?: AbortSignal): Promise<ScanStatus> {
-        const data = await postJson<CancelScanResponse>('mindfula11y_scan_cancel', { scanId }, { signal });
+    async cancelScan(scanId: string, options?: RequestOptions): Promise<ScanStatus> {
+        const data = await postJson<CancelScanResponse>('mindfula11y_scan_cancel', { scanId }, options);
         if (!isScanStatus(data.status)) {
             throw new Error(`The cancel-scan endpoint returned an unrecognized scan status: ${String(data.status)}.`);
         }

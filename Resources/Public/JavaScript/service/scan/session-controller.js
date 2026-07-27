@@ -1,4 +1,4 @@
-import { isScanInProgress } from "./types.js";
+import { isScanInProgress } from "../../lib/scan/types.js";
 const POLL_DELAY_MS = 5e3;
 class ScanSessionController {
   constructor(host, options) {
@@ -76,7 +76,7 @@ class ScanSessionController {
     const signal = this.beginOperation();
     this.setState("loading");
     try {
-      const filtered = await this.options.service.loadScan(scanId, this.options.pageUrlFilter(), signal);
+      const filtered = await this.options.service.loadScan(scanId, this.options.pageUrlFilter(), { signal });
       if (signal.aborted) {
         return;
       }
@@ -86,7 +86,7 @@ class ScanSessionController {
       }
       let crawl = null;
       if (this.options.withCrawlResult?.() === true && filtered.mode === "crawl") {
-        const unfiltered = await this.options.service.loadScan(scanId, [], signal);
+        const unfiltered = await this.options.service.loadScan(scanId, [], { signal });
         if (signal.aborted) {
           return;
         }
@@ -116,7 +116,7 @@ class ScanSessionController {
     const signal = this.beginOperation();
     let created;
     try {
-      created = await this.options.service.createScan(demand, aiAudit, signal);
+      created = await this.options.service.createScan(demand, aiAudit, { signal });
     } catch (error) {
       if (signal.aborted) {
         return;
@@ -139,7 +139,7 @@ class ScanSessionController {
     const signal = this.beginOperation();
     let failure = null;
     try {
-      await this.options.service.cancelScan(scanId, signal);
+      await this.options.service.cancelScan(scanId, { signal });
     } catch (error) {
       if (signal.aborted) {
         return;
@@ -178,7 +178,7 @@ class ScanSessionController {
     this.setState("loading");
     let created;
     try {
-      created = await this.options.service.createScan(demand, false, signal);
+      created = await this.options.service.createScan(demand, false, { signal });
     } catch (error) {
       if (signal.aborted) {
         return;

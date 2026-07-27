@@ -2,10 +2,15 @@ import { lll } from "@typo3/core/lit-helper.js";
 import { html, nothing } from "lit";
 import "@typo3/backend/element/icon-element.js";
 import "@typo3/backend/element/spinner-element.js";
-import { renderLoadingPlaceholder, renderNoticeBody, renderProgressNotice } from "../../lib/status-render.js";
+import { scanStatusView } from "../../lib/scan/status-view.js";
+import { AiAuditStatus, ScanStatus } from "../../lib/scan/types.js";
+import {
+  renderExternalLink,
+  renderLoadingPlaceholder,
+  renderNoticeBody,
+  renderProgressNotice
+} from "../../lib/status-render.js";
 import { withQueryParams } from "../../lib/url.js";
-import { scanStatusView } from "../../service/scan/status-view.js";
-import { AiAuditStatus, ScanStatus } from "../../service/scan/types.js";
 import "../notice/notice.js";
 import "../scan-results/scan-results.js";
 function urlListCovered(urlList, targets) {
@@ -65,11 +70,12 @@ function renderReportLinks(result, scanId, reportBaseUrl) {
     return nothing;
   }
   return html`<div class="actions">
-        <a class="button" href=${buildReportUrl(reportBaseUrl, scanId, "html")} target="_blank" rel="noreferrer">
-            <typo3-backend-icon identifier="actions-document" size="small"></typo3-backend-icon>
-            ${lll("mindfula11y.scan.report.html")}
-            <span class="sr-only">${lll("mindfula11y.scan.opensNewTab")}</span>
-        </a>
+        ${renderExternalLink({
+    className: "button",
+    href: buildReportUrl(reportBaseUrl, scanId, "html"),
+    content: html`<typo3-backend-icon identifier="actions-document" size="small"></typo3-backend-icon>
+                ${lll("mindfula11y.scan.report.html")}`
+  })}
         <a class="button" href=${buildReportUrl(reportBaseUrl, scanId, "pdf")} download="accessibility-report.pdf">
             <typo3-backend-icon identifier="actions-download" size="small"></typo3-backend-icon>
             ${lll("mindfula11y.scan.report.pdf")}

@@ -72,7 +72,7 @@ describe('StructureAnalysisCoordinator', () => {
         expect(analysis.headings?.nodes[0]?.viewports).toEqual(['mobile', 'desktop']);
         expect(analysis.landmarks).toBeNull();
         // The merged heading node has no backing record, so nothing to fetch metadata for.
-        expect(backend.fetchRecordMetadata).toHaveBeenCalledWith([], signal);
+        expect(backend.fetchRecordMetadata).toHaveBeenCalledWith([], { signal });
     });
 
     it('rejects instead of resolving when the signal aborts before the result is ready', async () => {

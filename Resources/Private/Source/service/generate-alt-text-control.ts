@@ -22,7 +22,7 @@ import DocumentService from '@typo3/core/document-service.js';
 import RegularEvent from '@typo3/core/event/regular-event.js';
 import { lll } from '@typo3/core/lit-helper.js';
 import '@typo3/backend/element/spinner-element.js';
-import type { GenerateAltTextDemand } from '../lib/types.js';
+import type { GenerateAltTextDemand } from './alt-text-api.js';
 import { AltTextApi } from './alt-text-api.js';
 import { errorView } from './request-error.js';
 

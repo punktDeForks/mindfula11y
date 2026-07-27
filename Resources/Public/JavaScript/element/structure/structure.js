@@ -23,6 +23,7 @@ import {
   impactState,
   renderCountBadge,
   renderDisclosureMarker,
+  renderExternalLink,
   renderFindingPill,
   renderNoticeBody,
   renderProgressNotice,
@@ -161,8 +162,7 @@ let Structure = class extends LitElement {
     return {
       id: tab,
       label: this.tabLabel(tab),
-      badge: this.renderTabBadge(severityCounts(this.analysis, [tab])),
-      disabled: this.analysis === null && this.analyzeTask.status === TaskStatus.PENDING
+      badge: this.renderTabBadge(severityCounts(this.analysis, [tab]))
     };
   }
   /** Count badge of the domain's worst present impact (worst-first, like the scan view). */
@@ -208,9 +208,11 @@ let Structure = class extends LitElement {
             >
                 ${lll("mindfula11y.structure.retry")}
             </button>
-            ${pageUrl === void 0 ? nothing : html`<a class="button open-page" href=${pageUrl} target="_blank" rel="noopener">
-                      ${lll("mindfula11y.structure.error.rendering.openPage")}
-                  </a>`}
+            ${pageUrl === void 0 ? nothing : renderExternalLink({
+      className: "button open-page",
+      href: pageUrl,
+      content: lll("mindfula11y.structure.error.rendering.openPage")
+    })}
         </div>`;
   }
   /**

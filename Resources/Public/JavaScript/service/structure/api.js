@@ -6,7 +6,8 @@ import { StructureAnalysisError } from "../../lib/structure/error.js";
 import { postJson } from "../backend-api.js";
 const MAX_RECORDS_PER_REQUEST = 200;
 class StructureAnalysisApi {
-  async issueTicket(pageId, languageId, signal) {
+  async issueTicket(pageId, languageId, options) {
+    const { signal } = options;
     const value = await this.post(
       "mindfula11y_structure_ticket_issue",
       "ticket",
@@ -18,7 +19,8 @@ class StructureAnalysisApi {
     }
     return value;
   }
-  async fetchRecordMetadata(requests, signal) {
+  async fetchRecordMetadata(requests, options) {
+    const { signal } = options;
     const metadata = /* @__PURE__ */ new Map();
     if (requests.length === 0) {
       return metadata;

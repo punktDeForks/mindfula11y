@@ -21,24 +21,20 @@ import { lll } from '@typo3/core/lit-helper.js';
 import type { CSSResult, TemplateResult } from 'lit';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 import '@typo3/backend/element/icon-element.js';
 import { scrollIntoViewCentered } from '../../lib/dom.js';
+import type { AgentFindingDto, AiAuditSkill, ImpactSeverity, ScanResult, ViolationDto } from '../../lib/scan/types.js';
+import { AiAuditStatus } from '../../lib/scan/types.js';
 import {
     IMPACT_ORDER,
     impactState,
     renderDisclosureMarker,
+    renderExternalLink,
     renderFindingPill,
     renderNoticeBody,
 } from '../../lib/status-render.js';
 import { safeHttpUrl } from '../../lib/url.js';
-import type {
-    AgentFindingDto,
-    AiAuditSkill,
-    ImpactSeverity,
-    ScanResult,
-    ViolationDto,
-} from '../../service/scan/types.js';
-import { AiAuditStatus } from '../../service/scan/types.js';
 import '../notice/notice.js';
 import { baseStyles } from '../../styles/base-styles.js';
 import disclosureStyles from '../../styles/disclosure.css.js';
@@ -128,9 +124,19 @@ export class ScanResults extends LitElement {
         if (violations.length === 0) {
             return nothing;
         }
-        const sorted = [...violations].sort((a, b) => IMPACT_ORDER.indexOf(a.impact) - IMPACT_ORDER.indexOf(b.impact));
+        const sorted = violations.toSorted((a, b) => IMPACT_ORDER.indexOf(a.impact) - IMPACT_ORDER.indexOf(b.impact));
+        // Keyed rendering: the cards are <details> whose open state (and a
+        // focused <summary>) lives in the DOM — a refresh with a different
+        // violation set must not reattach that state to whichever card lands
+        // at the same index. The rule id IS the card's identity:
+        // parseScanResult merges duplicate rule groups at the wire boundary,
+        // so its uniqueness is an invariant here, not an assumption.
         return html`<ul class="violations">
-            ${sorted.map((violation) => this.renderViolation(violation))}
+            ${repeat(
+                sorted,
+                (violation) => violation.rule.id,
+                (violation) => this.renderViolation(violation),
+            )}
         </ul>`;
     }
 
@@ -153,14 +159,17 @@ export class ScanResults extends LitElement {
                 <div class="body">
                     ${
                         helpUrl !== '#'
-                            ? html`<a class="help" href=${helpUrl} target="_blank" rel="noreferrer">
-                                  ${lll('mindfula11y.scan.helpUrl')}
-                                  <span class="sr-only">${lll('mindfula11y.scan.opensNewTab')}</span>
-                              </a>`
+                            ? renderExternalLink({
+                                  className: 'help',
+                                  href: helpUrl,
+                                  content: lll('mindfula11y.scan.helpUrl'),
+                              })
                             : nothing
                     }
                     <ul class="issues">
-                        ${violation.issues.map(
+                        ${repeat(
+                            violation.issues,
+                            (issue) => issue.id,
                             (issue) => html`<li class="issue">
                                 ${this.renderPageUrl(issue.pageUrl)}
                                 ${
@@ -203,10 +212,7 @@ export class ScanResults extends LitElement {
         }
         return html`<p class="detail">
             <span class="detail-label">${lll('mindfula11y.scan.pageUrl')}</span>
-            <a href=${href} target="_blank" rel="noreferrer">
-                ${display}
-                <span class="sr-only">${lll('mindfula11y.scan.opensNewTab')}</span>
-            </a>
+            ${renderExternalLink({ href, content: display })}
         </p>`;
     }
 
@@ -254,15 +260,7 @@ export class ScanResults extends LitElement {
     }
 
     private renderSkillGroups(findings: AgentFindingDto[]): TemplateResult {
-        const groups = new Map<AiAuditSkill, AgentFindingDto[]>();
-        for (const finding of findings) {
-            const group = groups.get(finding.skill);
-            if (group === undefined) {
-                groups.set(finding.skill, [finding]);
-            } else {
-                group.push(finding);
-            }
-        }
+        const groups = Map.groupBy(findings, (finding) => finding.skill);
         return html`${[...groups].map(
             ([skill, skillFindings]) => html`<section class="skill">
                 <h3 class="skill-title">

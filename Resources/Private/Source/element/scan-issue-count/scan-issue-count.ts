@@ -23,17 +23,18 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import '@typo3/backend/element/spinner-element.js';
 import { LiveAnnouncer } from '../../lib/live-announcer.js';
+import type { ScanStatusView } from '../../lib/scan/status-view.js';
+import { scanStatusView } from '../../lib/scan/status-view.js';
+import type { CreateScanDemand, ScanResult } from '../../lib/scan/types.js';
+import { ScanStatus } from '../../lib/scan/types.js';
 import { renderProgressNotice } from '../../lib/status-render.js';
 import { dispatch } from '../../lib/types.js';
 import { errorView } from '../../service/request-error.js';
 import { ScanApi } from '../../service/scan/api.js';
 import { ScanSessionController } from '../../service/scan/session-controller.js';
-import type { ScanStatusView } from '../../service/scan/status-view.js';
-import { scanStatusView } from '../../service/scan/status-view.js';
-import type { CreateScanDemand, ScanResult } from '../../service/scan/types.js';
-import { ScanStatus } from '../../service/scan/types.js';
 import { baseStyles } from '../../styles/base-styles.js';
 import '../notice/notice.js';
+import componentStyles from './scan-issue-count.css.js';
 
 /**
  * The shared scan-status view with its label already localized — the compact
@@ -66,7 +67,7 @@ const announcementFor = (view: StatusView): string =>
  */
 @customElement('mindfula11y-scan-issue-count')
 export class ScanIssueCount extends LitElement {
-    static override styles: CSSResult[] = [...baseStyles];
+    static override styles: CSSResult[] = [...baseStyles, componentStyles];
 
     @property({ attribute: 'scan-id' }) scanId: string = '';
     @property({ attribute: 'scan-uri' }) scanUri: string = '';
@@ -76,6 +77,17 @@ export class ScanIssueCount extends LitElement {
 
     private readonly scanApi: ScanApi = new ScanApi();
     private readonly announcer: LiveAnnouncer = new LiveAnnouncer(this);
+    /**
+     * Custom-state set for the `--empty` host state (styled in the component
+     * stylesheet). Guarded: below Baseline 2024 (`attachInternals` Safari
+     * < 16.4, `CustomStateSet` Safari < 17.4 / Firefox < 126) the host keeps
+     * an empty flex slot — a cosmetic regression, never a crash.
+     */
+    private readonly states: CustomStateSet | null =
+        typeof this.attachInternals === 'function'
+            ? ((this.attachInternals() as Partial<ElementInternals>).states ?? null)
+            : null;
+
     private lastAnnounced: string = '';
 
     private readonly controller: ScanSessionController = new ScanSessionController(this, {
@@ -93,12 +105,15 @@ export class ScanIssueCount extends LitElement {
 
     override updated(): void {
         const view = this.statusView();
-        // Without a scan to show, the host must not occupy layout — siblings
-        // are spaced with flex gap, and an empty block would leave a hole.
-        this.toggleAttribute('hidden', view === null);
+        // Without a scan to show, the host must not occupy layout. The custom
+        // state (styled in the component stylesheet) hides the host without
+        // touching the `hidden` attribute, which belongs to the embedding
+        // markup — self-toggling it clobbered integrator-set values.
         if (view === null) {
+            this.states?.add('--empty');
             return;
         }
+        this.states?.delete('--empty');
         // Announce settled statuses only when their announcement actually
         // changed: polling re-runs the load every five seconds, and the interim
         // generic loading placeholder or an unchanged status must not reach the

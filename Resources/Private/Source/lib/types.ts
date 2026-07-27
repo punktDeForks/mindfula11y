@@ -21,13 +21,10 @@
  * Cross-feature types and the typed catalogue of every custom event this
  * extension dispatches (`mindfula11y:<domain>:<action>`, always with
  * `bubbles: true, composed: true`). Feature-specific types live with their
- * feature: `lib/structure/types.ts`, `service/scan/types.ts`.
+ * feature: `lib/structure/types.ts`, `lib/scan/types.ts`,
+ * `service/alt-text-api.ts`.
  */
 
-/** Opaque, HMAC-signed alt-text generation payload serialized into elements by PHP. */
-export type GenerateAltTextDemand = Record<string, unknown>;
-
-/** Database coordinates of the record behind a heading/landmark. */
 /**
  * axe-core impact scale; agent findings reuse it as their severity. Lives in
  * lib because the shared status renderers key off it; the scan wire types
@@ -42,6 +39,7 @@ export type ImpactSeverity = 'critical' | 'serious' | 'moderate' | 'minor';
  */
 export const IMPACT_ORDER: readonly ImpactSeverity[] = ['critical', 'serious', 'moderate', 'minor'];
 
+/** Database coordinates of the record behind a heading/landmark. */
 export interface RecordReference {
     tableName: string;
     columnName: string;
@@ -76,9 +74,11 @@ declare global {
 /**
  * Dispatches one of the extension's custom events with its typed detail and
  * the mandatory `bubbles: true, composed: true` (§3.E) — the single place the
- * event-dispatch contract is spelled out.
+ * event-dispatch contract is spelled out. The intersection with the template
+ * literal makes the `mindfula11y:<domain>:<action>` naming rule (§1.6) a
+ * compile-time check: a mis-named key added to the map cannot be dispatched.
  */
-export function dispatch<K extends keyof Mindfula11yEventMap>(
+export function dispatch<K extends keyof Mindfula11yEventMap & `mindfula11y:${string}:${string}`>(
     target: EventTarget,
     name: K,
     detail: Mindfula11yEventMap[K]['detail'],

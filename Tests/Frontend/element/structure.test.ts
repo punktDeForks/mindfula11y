@@ -118,7 +118,8 @@ describe('Structure', () => {
         const link = view.renderRoot.querySelector('a.open-page') as HTMLAnchorElement | null;
         expect(link?.getAttribute('href')).toBe('https://staging.example/protected');
         expect(link?.target).toBe('_blank');
-        expect(link?.rel).toBe('noopener');
+        expect(link?.rel).toBe('noreferrer');
+        expect(link?.querySelector('.sr-only')?.textContent).toContain('mindfula11y.general.opensNewTab');
         expect(link?.textContent).toContain('mindfula11y.structure.error.rendering.openPage');
         expect(view.renderRoot.querySelector('button.retry')).not.toBeNull();
     });

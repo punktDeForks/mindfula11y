@@ -1,6 +1,10 @@
 import { lll } from "@typo3/core/lit-helper.js";
 import { html, nothing } from "lit";
 import { IMPACT_ORDER } from "./types.js";
+const renderExternalLink = (options) => html`<a class=${options.className ?? nothing} href=${options.href} target="_blank" rel="noreferrer">
+        ${options.content}
+        <span class="sr-only">${lll("mindfula11y.general.opensNewTab")}</span>
+    </a>`;
 const IMPACT_STATES = {
   critical: "danger",
   serious: "serious",
@@ -90,6 +94,7 @@ export {
   noticeStateIcon,
   renderCountBadge,
   renderDisclosureMarker,
+  renderExternalLink,
   renderFindingPill,
   renderLoadingPlaceholder,
   renderNoticeBody,

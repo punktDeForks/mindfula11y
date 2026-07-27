@@ -9,8 +9,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ScanStatus } from '../../../../Resources/Private/Source/lib/scan/types.js';
 import { ScanApi } from '../../../../Resources/Private/Source/service/scan/api.js';
-import { ScanStatus } from '../../../../Resources/Private/Source/service/scan/types.js';
 
 const getJson = vi.fn();
 const postJson = vi.fn();
@@ -75,6 +75,24 @@ describe('ScanApi.loadScan wire validation', () => {
         expect(result?.status).toBe(ScanStatus.Completed);
         expect(result?.violations).toHaveLength(1);
         expect(result?.agentFindings).toHaveLength(1);
+    });
+
+    it('merges duplicate rule groups, concatenating issues and keeping the worst impact', async () => {
+        // The first group is deliberately NOT the worst: the later duplicate
+        // must upgrade the merged group's impact, not just be absorbed.
+        const base = { ...violation, impact: 'moderate' };
+        const duplicate = {
+            ...violation,
+            impact: 'critical',
+            issues: [{ id: 2, pageUrl: 'https://example.test/other', selector: 'a', context: '<a>' }],
+        };
+        getJson.mockResolvedValue({ ...validPayload(), violations: [base, duplicate] });
+
+        const result = await new ScanApi().loadScan('scan-1');
+
+        expect(result?.violations).toHaveLength(1);
+        expect(result?.violations[0]?.impact).toBe('critical');
+        expect(result?.violations[0]?.issues.map((issue) => issue.id)).toEqual([1, 2]);
     });
 
     it('rejects a payload whose violations member is not an array of violation shapes', async () => {

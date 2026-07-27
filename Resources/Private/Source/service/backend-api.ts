@@ -40,6 +40,11 @@ const resolveAjaxUrl = (ajaxUrlKey: string): string => {
  * under `exactOptionalPropertyTypes`, which rejects an explicit
  * `signal: undefined` against DOM's `signal?: AbortSignal | null` property.
  */
+/** Options accepted by the request helpers and, per §3.G, every API client method. */
+export interface RequestOptions {
+    signal?: AbortSignal | undefined;
+}
+
 const requestInit = (signal: AbortSignal | undefined, headers?: Record<string, string>): RequestInit => {
     const init: RequestInit = {};
     if (headers !== undefined) {
@@ -65,7 +70,7 @@ const requestInit = (signal: AbortSignal | undefined, headers?: Record<string, s
 export const getJson = async <T>(
     ajaxUrlKey: string,
     params?: Record<string, string | string[]>,
-    options?: { signal?: AbortSignal | undefined },
+    options?: RequestOptions,
 ): Promise<T> => {
     const url = resolveAjaxUrl(ajaxUrlKey);
     try {
@@ -88,7 +93,7 @@ export const getJson = async <T>(
 export const postJson = async <T>(
     ajaxUrlKey: string,
     body: Record<string, unknown> | BodyInit | null,
-    options?: { signal?: AbortSignal | undefined },
+    options?: RequestOptions,
 ): Promise<T> => {
     const url = resolveAjaxUrl(ajaxUrlKey);
     try {
