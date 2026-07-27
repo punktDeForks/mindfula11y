@@ -20,31 +20,31 @@
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.description"
 				resname="ttContent.columns.mindfula11y.headingType.description">
-				<source>Choose this heading's place in the page structure, not its visual size. Use level 1 for the page heading, level 2 for main sections, and increase one level at a time. Choose "Paragraph — not a heading" only when the text does not introduce a section.</source>
+				<source>Choose this heading's place in the page structure, not its visual size. Use H1 for the page heading, H2 for main sections, and increase one level at a time. Choose "Paragraph — not a heading" only when the text does not introduce a section.</source>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h1"
 				resname="ttContent.columns.mindfula11y.headingType.items.h1">
-				<source>Level 1 (H1) — page heading</source>
+				<source>H1 — page heading</source>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h2"
 				resname="ttContent.columns.mindfula11y.headingType.items.h2">
-				<source>Level 2 (H2)</source>
+				<source>H2</source>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h3"
 				resname="ttContent.columns.mindfula11y.headingType.items.h3">
-				<source>Level 3 (H3)</source>
+				<source>H3</source>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h4"
 				resname="ttContent.columns.mindfula11y.headingType.items.h4">
-				<source>Level 4 (H4)</source>
+				<source>H4</source>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h5"
 				resname="ttContent.columns.mindfula11y.headingType.items.h5">
-				<source>Level 5 (H5)</source>
+				<source>H5</source>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h6"
 				resname="ttContent.columns.mindfula11y.headingType.items.h6">
-				<source>Level 6 (H6)</source>
+				<source>H6</source>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.p"
 				resname="ttContent.columns.mindfula11y.headingType.items.p">

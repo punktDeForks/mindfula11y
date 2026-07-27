@@ -20,32 +20,32 @@
 				<target>Überschriftenebene</target>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.description" resname="ttContent.columns.mindfula11y.headingType.description">
-				<source>Choose this heading's place in the page structure, not its visual size. Use level 1 for the page heading, level 2 for main sections, and increase one level at a time. Choose "Paragraph — not a heading" only when the text does not introduce a section.</source>
-				<target>Wählen Sie die Position dieser Überschrift in der Seitenstruktur, nicht ihre visuelle Größe. Verwenden Sie Ebene 1 für die Seitenüberschrift, Ebene 2 für Hauptabschnitte und erhöhen Sie jeweils um eine Ebene. Wählen Sie „Absatz — keine Überschrift“ nur, wenn der Text keinen Abschnitt einleitet.</target>
+				<source>Choose this heading's place in the page structure, not its visual size. Use H1 for the page heading, H2 for main sections, and increase one level at a time. Choose "Paragraph — not a heading" only when the text does not introduce a section.</source>
+				<target>Wählen Sie die Position dieser Überschrift in der Seitenstruktur, nicht ihre visuelle Größe. Verwenden Sie H1 für die Seitenüberschrift, H2 für Hauptabschnitte und erhöhen Sie jeweils um eine Ebene. Wählen Sie „Absatz — keine Überschrift“ nur, wenn der Text keinen Abschnitt einleitet.</target>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h1" resname="ttContent.columns.mindfula11y.headingType.items.h1">
-				<source>Level 1 (H1) — page heading</source>
-				<target>Ebene 1 (H1) — Seitenüberschrift</target>
+				<source>H1 — page heading</source>
+				<target>H1 — Seitenüberschrift</target>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h2" resname="ttContent.columns.mindfula11y.headingType.items.h2">
-				<source>Level 2 (H2)</source>
-				<target>Ebene 2 (H2)</target>
+				<source>H2</source>
+				<target>H2</target>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h3" resname="ttContent.columns.mindfula11y.headingType.items.h3">
-				<source>Level 3 (H3)</source>
-				<target>Ebene 3 (H3)</target>
+				<source>H3</source>
+				<target>H3</target>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h4" resname="ttContent.columns.mindfula11y.headingType.items.h4">
-				<source>Level 4 (H4)</source>
-				<target>Ebene 4 (H4)</target>
+				<source>H4</source>
+				<target>H4</target>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h5" resname="ttContent.columns.mindfula11y.headingType.items.h5">
-				<source>Level 5 (H5)</source>
-				<target>Ebene 5 (H5)</target>
+				<source>H5</source>
+				<target>H5</target>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.h6" resname="ttContent.columns.mindfula11y.headingType.items.h6">
-				<source>Level 6 (H6)</source>
-				<target>Ebene 6 (H6)</target>
+				<source>H6</source>
+				<target>H6</target>
 			</trans-unit>
 			<trans-unit id="ttContent.columns.mindfula11y.headingType.items.p" resname="ttContent.columns.mindfula11y.headingType.items.p">
 				<source>Paragraph — not a heading</source>
