@@ -43,7 +43,7 @@
     }
 
     .description {
-        max-inline-size: 70ch;
+        max-inline-size: var(--mindfula11y-line-limit);
         color: var(--mindfula11y-text-subtle);
     }
 
@@ -73,7 +73,7 @@
 
     .toggle-description {
         grid-column: 2;
-        max-inline-size: 70ch;
+        max-inline-size: var(--mindfula11y-line-limit);
         font-size: var(--mindfula11y-font-size-xs);
         color: var(--mindfula11y-text-subtle);
     }

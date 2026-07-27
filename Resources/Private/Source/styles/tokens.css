@@ -75,6 +75,22 @@
         --mindfula11y-control-padding-block: 0.375em;
         --mindfula11y-control-padding-inline: 0.75em;
         --mindfula11y-control-min-size: 1.5em;
+        /*
+         * The height a padded one-line control actually occupies: its line box
+         * plus the padding above and the 1px border pair. Not a component
+         * concern — anything that has to align *with* such a control (a tree
+         * elbow pointing at a chip, a rule meeting a row) needs the same
+         * number, and derived twice the two would drift on the first padding
+         * change. Unlike `--mindfula11y-control-min-size` this is the resulting
+         * size, not the floor a small label is held to.
+         */
+        --mindfula11y-control-height: calc(
+            var(--mindfula11y-line-height) *
+            1em +
+            2 *
+            var(--mindfula11y-control-padding-block) +
+            2px
+        );
 
         /* Text */
         --mindfula11y-text: var(--typo3-text-color-base, #1a1a1a);
@@ -103,6 +119,15 @@
         --mindfula11y-component-hover-color: var(--typo3-component-hover-color, #1a1a1a);
         --mindfula11y-border: var(--typo3-component-border-color, #d4d4d4);
         --mindfula11y-radius: var(--typo3-component-border-radius, 0.75em);
+
+        /*
+         * Reading measure (WCAG 1.4.8: ≤ 80 characters per line). Every
+         * surface that holds a block of text caps its inline size here, and
+         * anything that must align with such a surface — the structure
+         * widget's disclosure row wrapping a notice — measures against the
+         * same token instead of repeating the value.
+         */
+        --mindfula11y-line-limit: 70ch;
 
         /*
          * Fluid space scale (Utopia) — the ONLY spacing values components may

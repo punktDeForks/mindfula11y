@@ -84,13 +84,13 @@
     }
 
     .hint {
-        max-inline-size: 70ch;
+        max-inline-size: var(--mindfula11y-line-limit);
         color: var(--mindfula11y-text-subtle);
     }
 
     .input {
         inline-size: 100%;
-        max-inline-size: 70ch;
+        max-inline-size: var(--mindfula11y-line-limit);
         padding-block: var(--mindfula11y-control-padding-block);
         padding-inline: var(--mindfula11y-control-padding-inline);
         color: var(--mindfula11y-input-color);

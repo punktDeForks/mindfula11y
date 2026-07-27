@@ -52,7 +52,7 @@
         flex-direction: column;
         gap: var(--mindfula11y-space-2xs);
         align-items: center;
-        max-inline-size: 70ch;
+        max-inline-size: var(--mindfula11y-line-limit);
         padding-block: var(--mindfula11y-space-l);
         margin-inline: auto;
         color: var(--mindfula11y-text-subtle);

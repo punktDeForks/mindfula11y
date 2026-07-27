@@ -369,7 +369,7 @@ behaviour. Pick the unit by what the value should track:
 | Hairlines / border widths, accent bars | `px` (or a small `rem`/`em` for deliberate emphasis) | must not drift with zoom |
 | Radii | `--mindfula11y-radius` (containers) / `--mindfula11y-input-radius` (controls/chips) / `999em` (pills) | consistent families |
 | Container/media thresholds | `rem` | linted |
-| Text measure | `max-inline-size: 70ch` on any block of copy | WCAG AAA ≤ 80 chars |
+| Text measure | `max-inline-size: var(--mindfula11y-line-limit)` on any block of copy | WCAG AAA ≤ 80 chars |
 
 The linter bans raw `px`/`rem` on margin/padding/gap/inset — don't re-check that. Judge the
 *intent*: flag a rem step where the gap sits on a container edge (should be the `-fixed-`
