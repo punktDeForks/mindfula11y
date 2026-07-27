@@ -24,47 +24,181 @@
  */
 @layer component {
     /*
-     * One flat list: hierarchy is announced per row via the heading level, so
-     * the indentation is a purely visual aid derived from the level. The step
-     * uses the FIXED (px) space scale on purpose: indent multiplies by depth,
-     * and a text-zoom-scaled step would overflow narrow viewports at 200%
-     * (WCAG 1.4.10) — the announced levels carry the semantics regardless.
-     * The indent factor is a runtime value the component sets per item
-     * (--mindfula11y-heading-structure-indent).
+     * One flat list inside ONE frame: per-row cards made five headings read as
+     * five separate objects and left the hierarchy to indentation alone. The
+     * list is the object; rows are lines within it, related by the dotted tree
+     * lines below. Rows stack as plain blocks — they sit flush by design, so
+     * there is no gap for a flex column to distribute.
      */
     .tree {
-        display: flex;
-        flex-direction: column;
-        gap: var(--mindfula11y-space-3xs);
-    }
+        /*
+         * The tree's metrics, stated once here because the indent gutter (on
+         * the list item) and the lane the elbow lands in (inside the row) have
+         * to agree: the rail sits at the lane's center — the row's accent-bar
+         * border plus half the lane — so a parent's rail is exactly where its
+         * children's elbows start. That also caps the lane: the offset has to
+         * stay below one indent step, or a rail leaves its gutter.
+         *
+         * Every length here is on the ROOT-SCALED space steps (rem, fluid by
+         * viewport) so the tree grows with the text it annotates instead of
+         * shrinking against it at larger root font sizes. Indent multiplies by
+         * depth, so the step starts at its smallest and only opens up at the
+         * wider breakpoints — that, not a pinned px value, is what keeps a deep
+         * structure inside a 320px viewport at 200% (WCAG 1.4.10).
+         */
+        --mindfula11y-heading-structure-step: var(--mindfula11y-space-2xs);
+        --mindfula11y-heading-structure-lane: var(--mindfula11y-space-s);
+        --mindfula11y-heading-structure-bar: 2px;
+        --mindfula11y-heading-structure-rail-offset: calc(
+            var(--mindfula11y-heading-structure-bar) +
+            var(--mindfula11y-heading-structure-lane) /
+            2
+        );
+        /*
+         * The tree line: dots on a pitch of five times their radius, drawn
+         * identically along the vertical rails and the horizontal elbows so
+         * both read as one dotted system. `em` keeps the texture proportional
+         * to the text at any root font size — the tree inherits the host's own
+         * size, so this is the root scale.
+         *
+         * A dotted line puts roughly half the ink of a solid one on the page,
+         * so it is mixed down from the subtle text color rather than drawn in
+         * the border color a solid hairline could carry — decoration either way
+         * (the level text and the indent carry the depth), just legible.
+         */
+        --mindfula11y-heading-structure-tree-line-dot: 0.0625em;
+        --mindfula11y-heading-structure-tree-line-pitch: 0.3125em;
+        --mindfula11y-heading-structure-tree-line: color-mix(in srgb, var(--mindfula11y-text-subtle) 45%, transparent);
+        /*
+         * One dot, one recipe: both the rails and the elbows tile this image,
+         * so they read as a single dotted system. The rails sit the dot on the
+         * lane center of the depth they cross, everything else centers it —
+         * `--…-dot-x` is the only thing that varies.
+         */
+        --mindfula11y-heading-structure-tree-line-image: radial-gradient(
+            circle at var(--mindfula11y-heading-structure-dot-x, 50%) 50%,
+            var(--mindfula11y-heading-structure-tree-line) 0 var(--mindfula11y-heading-structure-tree-line-dot),
+            transparent var(--mindfula11y-heading-structure-tree-line-dot)
+        );
+        /* The rows' own block padding — the elbow centers on it (see .node). */
+        --mindfula11y-heading-structure-row-padding: var(--mindfula11y-space-2xs);
 
-    .node {
-        padding-inline-start: calc(var(--mindfula11y-heading-structure-indent, 0) * var(--mindfula11y-space-fixed-3xs));
+        padding-block: var(--mindfula11y-space-3xs);
+        background-color: var(--mindfula11y-component-bg);
+        border: 1px solid var(--mindfula11y-border);
+        border-radius: var(--mindfula11y-radius);
 
         @container (inline-size >= 36rem) {
-            padding-inline-start: calc(
-                var(--mindfula11y-heading-structure-indent, 0) *
-                var(--mindfula11y-space-fixed-2xs)
-            );
+            --mindfula11y-heading-structure-step: var(--mindfula11y-space-xs);
         }
 
         @container (inline-size >= 56rem) {
-            padding-inline-start: calc(
-                var(--mindfula11y-heading-structure-indent, 0) *
-                var(--mindfula11y-space-fixed-s)
-            );
+            --mindfula11y-heading-structure-step: var(--mindfula11y-space-s);
         }
     }
 
+    /*
+     * Hierarchy is announced per row via the heading level, so the indentation
+     * is a purely visual aid derived from the level — the announced levels
+     * carry the semantics regardless. The indent factor is a runtime value the
+     * component sets per item (--mindfula11y-heading-structure-indent).
+     *
+     * The gutter carries the tree lines. A dotted rail runs down every crossed
+     * depth, on the lane center of the row that owns that depth, and a dotted
+     * elbow reaches from the rail of the row's own parent depth across to its
+     * level chip — so a heading, the rail past its children and the elbow into
+     * each of them are one connected figure. Rows sit flush against each other
+     * (no list gap) so a rail never breaks at a row seam.
+     *
+     * A rail stops where the structure does: it is drawn per row, over that
+     * row's own gutter, so the last row deep enough to cross a depth is the
+     * last one to draw its rail — the line ends there without anyone having to
+     * compute last-child.
+     *
+     * Both lines are one tile pattern: a dot at the rail offset, repeated
+     * every step across and every pitch down (background tiles clip to the
+     * gutter, so a row only ever paints the depths it actually crosses).
+     *
+     * Below the first breakpoint the indent step is at its smallest to keep
+     * deep structures inside a 320px viewport, which puts the rails closer
+     * together than the elbow is long — the lines are dropped there rather
+     * than drawn as a hatch, and the indent carries the depth alone.
+     */
+    .node {
+        position: relative;
+        padding-inline-start: calc(
+            var(--mindfula11y-heading-structure-indent, 0) *
+            var(--mindfula11y-heading-structure-step)
+        );
+
+        @container (inline-size >= 36rem) {
+            &::before {
+                --mindfula11y-heading-structure-dot-x: var(--mindfula11y-heading-structure-rail-offset);
+
+                position: absolute;
+                inset-block: 0;
+                inset-inline-start: 0;
+                inline-size: calc(
+                    var(--mindfula11y-heading-structure-indent, 0) *
+                    var(--mindfula11y-heading-structure-step)
+                );
+                content: "";
+                background-image: var(--mindfula11y-heading-structure-tree-line-image);
+                background-size: var(--mindfula11y-heading-structure-step)
+                    var(--mindfula11y-heading-structure-tree-line-pitch);
+            }
+
+            /*
+             * The elbow into a row, on the axis of its level chip: it starts on
+             * the parent depth's rail and crosses the lane to the chip, so the
+             * row is visibly hung off the level above it. Only indented rows
+             * have a parent depth to come from — the attribute is what keeps
+             * the stub off the top-level rows, where it would otherwise be
+             * drawn outside the gutter.
+             */
+            &[data-nested]::after {
+                position: absolute;
+                /* The row's block padding plus half the chip, less half the line's
+                   own thickness — centered on the chip, not hung from its center. */
+                inset-block-start: calc(
+                    var(--mindfula11y-heading-structure-row-padding) +
+                    var(--mindfula11y-control-height) /
+                    2 -
+                    var(--mindfula11y-heading-structure-tree-line-dot)
+                );
+                inset-inline-start: calc(
+                    var(--mindfula11y-heading-structure-rail-offset) +
+                    (var(--mindfula11y-heading-structure-indent, 0) - 1) *
+                    var(--mindfula11y-heading-structure-step)
+                );
+                inline-size: calc(
+                    var(--mindfula11y-heading-structure-step) +
+                    var(--mindfula11y-heading-structure-lane) /
+                    2
+                );
+                block-size: calc(2 * var(--mindfula11y-heading-structure-tree-line-dot));
+                content: "";
+                background-image: var(--mindfula11y-heading-structure-tree-line-image);
+                background-size: var(--mindfula11y-heading-structure-tree-line-pitch) 100%;
+            }
+        }
+    }
+
+    /*
+     * A line in the list, not a card: the tree line arriving from the gutter
+     * is what places it, and the accent bar is the finding cue the removed
+     * card border used to carry.
+     */
     .row {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
         gap: var(--mindfula11y-space-2xs);
         align-items: start;
-        padding: var(--mindfula11y-space-fixed-2xs);
-        background-color: var(--mindfula11y-component-bg);
-        border: 1px solid var(--mindfula11y-border);
-        border-radius: var(--mindfula11y-radius);
+        padding-block: var(--mindfula11y-heading-structure-row-padding);
+        padding-inline: var(--mindfula11y-heading-structure-lane) var(--mindfula11y-space-2xs);
+        /* Transparent by default so a finding colors the bar without shifting
+           the row's content — and so the rail offset holds either way. */
+        border-inline-start: var(--mindfula11y-heading-structure-bar) solid transparent;
 
         /* :where() keeps the hover at the base specificity so the later
            shared control-chip recipe doesn't rank as descending. */
@@ -73,15 +207,17 @@
         }
 
         /* A row carrying its findings inline (no separate issue row beneath
-           it) is marked as the issue surface itself: the border accent takes
-           its worst finding's notice state (moderate → warning, minor → info
-           — the only impacts the structure analyzers emit). */
+           it) is marked as the issue surface itself: the bar takes its worst
+           finding's notice state (moderate → warning, minor → info — the only
+           impacts the structure analyzers emit), matching the inline notice it
+           sits beside. Decorative reinforcement; the notice text is the
+           carrier. */
         &[data-issue-state="warning"] {
-            border-color: var(--mindfula11y-state-warning-border);
+            border-inline-start-color: var(--mindfula11y-state-warning-border);
         }
 
         &[data-issue-state="info"] {
-            border-color: var(--mindfula11y-state-info-border);
+            border-inline-start-color: var(--mindfula11y-state-info-border);
         }
 
         @container (inline-size >= 36rem) {
@@ -96,12 +232,21 @@
         }
     }
 
-    /* The primary reading unit always leads the row: level then title. */
+    /*
+     * The primary reading unit always leads the row: level then title. They
+     * align on their first BASELINE, not on the group's middle: the chip is
+     * the tallest item, so it keeps the group's top edge — which is where the
+     * row's dot marker is pinned — while the title reads on the chip's own
+     * text line. Centering instead let the chip drift down the middle of a
+     * wrapped title and away from its dot (every title wraps at 200% text
+     * zoom); top-aligning would keep the dot but lift the title off the chip's
+     * line.
+     */
     .heading {
         display: flex;
         flex-wrap: wrap;
         gap: var(--mindfula11y-space-2xs);
-        align-items: center;
+        align-items: baseline;
         min-inline-size: 0;
     }
 
@@ -111,13 +256,23 @@
      * editable select shares the same solid input look — dashed borders are
      * reserved for derived, read-only chips. `:where()` keeps the shared
      * recipe at zero specificity so the per-class rules below always win.
-     * Em-based minimum sizes keep the hit target >= 24px at every zoom level.
+     *
+     * The minimum is the natural height of a one-line chip — line box, the
+     * shared control padding, and the 1px border — rather than the bare 24px
+     * touch minimum. A `<select>` lays out its own internal line box and
+     * ignores the inherited `line-height` (Chromium), so it otherwise renders
+     * ~5px shorter than an identically padded button or span; pinning the
+     * height makes a select, a locked chip and a relation jump button share
+     * one baseline, which is what keeps rows the same height. The shared
+     * `--mindfula11y-control-height` is that height for every padded one-line
+     * control, so the row's elbow can center on the same value; still em-based,
+     * so the hit target stays >= 24px at every zoom level.
      */
     :where(.level, .child-level) {
         display: inline-flex;
         gap: var(--mindfula11y-space-3xs);
         align-items: center;
-        min-block-size: var(--mindfula11y-control-min-size);
+        min-block-size: var(--mindfula11y-control-height);
         padding-block: var(--mindfula11y-control-padding-block);
         padding-inline: var(--mindfula11y-control-padding-inline);
         font-variant-numeric: tabular-nums;
@@ -143,13 +298,12 @@
         text-align: center;
         white-space: nowrap;
 
-        /* Dashed = inherited. The visible relation text explains where the
-           level is controlled; only a reachable source becomes a jump button. */
+        /* Dashed = inherited, carried by the border and the trailing link/lock
+           icon rather than by wordy chip text; the screen-reader text in the
+           chip says the same. Only a reachable source becomes a jump button.
+           Keeps the centered nowrap geometry of every other level chip, so the
+           titles beside them line up. */
         &[data-relation] {
-            justify-content: start;
-            max-inline-size: 100%;
-            text-align: start;
-            white-space: normal;
             border-style: dashed;
 
             &[data-control] {
@@ -164,7 +318,7 @@
         }
     }
 
-    :is(.relation-label, .child-label) {
+    .child-label {
         font-size: var(--mindfula11y-font-size-xs);
         font-weight: 600;
         color: var(--mindfula11y-text-subtle);
@@ -206,7 +360,9 @@
         gap: var(--mindfula11y-space-3xs);
         align-items: start;
         min-inline-size: 0;
-        padding: var(--mindfula11y-space-fixed-2xs);
+        /* Padding around text on the same rem step the row uses, so the inset
+           band and the row it sits in scale together. */
+        padding: var(--mindfula11y-space-2xs);
         background-color: var(--mindfula11y-surface-high);
         border-radius: var(--mindfula11y-input-radius);
 
@@ -216,8 +372,18 @@
             align-items: center;
         }
 
+        /*
+         * Once the group moves into the row itself it is no longer a band of
+         * its own, so it drops the inset surface and its padding: the filled
+         * block made the one row that owns a child-type setting read as a
+         * different kind of row, and its block padding was what made that row
+         * taller than every sibling. Flat here, the label and select sit on
+         * the row baseline like the level control opposite them.
+         */
         @container (inline-size >= 56rem) {
             grid-column: auto;
+            padding: 0;
+            background-color: transparent;
         }
     }
 

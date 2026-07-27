@@ -14,9 +14,8 @@ import { html, nothing } from "lit";
 import { customElement } from "lit/decorators.js";
 import { repeat } from "lit/directives/repeat.js";
 import "@typo3/backend/element/icon-element.js";
-import { impactState, renderViewportBadges } from "../../lib/status-render.js";
+import { impactState, renderViewportBadges, worstSeverity } from "../../lib/status-render.js";
 import { HEADING_ERROR_KEYS } from "../../lib/structure/types.js";
-import { IMPACT_ORDER } from "../../lib/types.js";
 import {
   StructureView
 } from "../structure-view/structure-view.js";
@@ -182,13 +181,21 @@ let HeadingStructure = class extends StructureView {
   rowLabelId(nodeId) {
     return `heading-row-label-${nodeId}`;
   }
-  /** The single list-item shell used by every ordinary and issue-only row. */
+  /**
+   * The single list-item shell used by every ordinary and issue-only row.
+   * The indent factor the tree lines are drawn from is a runtime value, so
+   * it rides on the style attribute; `data-nested` marks the rows that have
+   * a parent depth to draw an elbow from, which CSS cannot derive from that
+   * value on its own.
+   */
   renderListItem(content, options) {
+    const indent = options.indent === void 0 ? 0 : options.indent - 1;
     return html`<li
             class="node"
             data-issue-kind=${options.issueKind ?? nothing}
             data-focus-fallback=${options.focusLabelId ?? nothing}
-            style=${options.indent === void 0 ? nothing : `--mindfula11y-heading-structure-indent: ${options.indent - 1}`}
+            ?data-nested=${indent > 0}
+            style=${options.indent === void 0 ? nothing : `--mindfula11y-heading-structure-indent: ${indent}`}
         >
             ${content}
         </li>`;
@@ -297,7 +304,7 @@ let HeadingStructure = class extends StructureView {
   }
   /** The single row shell used by issue-only, ordinary heading and hidden-container rows. */
   renderHeadingRow(options) {
-    const worst = IMPACT_ORDER.find((impact) => options.errors.some((error) => error.severity === impact));
+    const worst = worstSeverity(options.errors, (error) => error.severity);
     return html`<div
             class="row"
             data-node-id=${options.nodeId ?? nothing}
@@ -365,18 +372,29 @@ let HeadingStructure = class extends StructureView {
     const typeLabel = type === "" ? "" : lll(`mindfula11y.structure.headings.level.${type}`);
     return typeLabel || "\u2014";
   }
-  /** Shared visible and screen-reader explanation for both relation variants. */
+  /**
+   * A derived level reads as the level plus an icon: a link when its source
+   * is in this list (the chip is then a jump button), a lock when it is not.
+   * The chip carries no visible explanation — it would repeat on every
+   * derived row and crowd out the heading title, which is what an editor
+   * scans for.
+   *
+   * Core renders icons `aria-hidden`, so the icon alone would say nothing.
+   * The screen-reader text is therefore the only carrier of what the icon
+   * means and must stay equivalent to it: which kind of source the level
+   * comes from, that it cannot be changed here, and — only where the chip is
+   * actually actionable — that activating it jumps to that source.
+   */
   renderRelationLevelContent(node, hasTarget) {
     const relationKey = node.relation?.kind === "ancestor" ? "mindfula11y.structure.headings.relation.descendant" : "mindfula11y.structure.headings.relation.sibling";
     return html`${this.levelChipLabel(node)}
-            <span class="relation-label">${lll(relationKey)}</span>
             <typo3-backend-icon
                 identifier=${hasTarget ? "actions-link" : "actions-lock"}
                 size="small"
                 aria-hidden="true"
             ></typo3-backend-icon>
             <span class="sr-only">
-                ${lll("mindfula11y.structure.headings.relation.readonly")}
+                ${lll(relationKey)}
                 ${hasTarget ? lll("mindfula11y.structure.headings.relation.jump") : nothing}
             </span>`;
   }

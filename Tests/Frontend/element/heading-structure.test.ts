@@ -85,6 +85,28 @@ describe('HeadingStructure', () => {
         expect(view.renderRoot.querySelector('.view > [data-scope="page"]')).toBeNull();
     });
 
+    it('marks indented rows as nested and top-level rows as not, so only the former draw a tree elbow', async () => {
+        const view = await mount([
+            makeNode('h1', {
+                level: 1,
+                children: [makeNode('h2', { level: 2, children: [makeNode('h3', { level: 3 })] })],
+            }),
+        ]);
+
+        const nested = Array.from(view.renderRoot.querySelectorAll<HTMLElement>('li.node')).map((node) => ({
+            indent: node.style.getPropertyValue('--mindfula11y-heading-structure-indent'),
+            nested: node.hasAttribute('data-nested'),
+        }));
+
+        // The elbow reaches from the rail of the row's parent depth, so the
+        // rows at depth 0 must not draw one — there is no gutter to draw it in.
+        expect(nested).toEqual([
+            { indent: '0', nested: false },
+            { indent: '1', nested: true },
+            { indent: '2', nested: true },
+        ]);
+    });
+
     it('keeps node findings inside their affected list item', async () => {
         const nodeError = makeError('mindfula11y.structure.headings.error.emptyHeadings', 'heading-1');
         const view = await mount([makeNode('heading-1', { errors: [nodeError] })]);
@@ -137,7 +159,7 @@ describe('HeadingStructure', () => {
                     editLink: '/edit/1',
                     storedValue: 'p',
                 },
-                availableTypes: { h2: 'Level 2 (H2)', p: 'Paragraph — not a heading' },
+                availableTypes: { h2: 'H2', p: 'Paragraph — not a heading' },
             }),
         ]);
 
@@ -173,7 +195,7 @@ describe('HeadingStructure', () => {
                     editLink: '/edit/1',
                     storedValue: 'h2',
                 },
-                availableTypes: { h2: 'Level 2 (H2)' },
+                availableTypes: { h2: 'H2' },
                 errors: [containerError],
             }),
         ]);
@@ -299,11 +321,16 @@ describe('HeadingStructure', () => {
 
             expect(control?.tagName).toBe('BUTTON');
             expect(control?.querySelector('select')).toBeNull();
-            expect(control?.textContent).toContain(labelKey);
-            expect(control?.textContent).toContain('mindfula11y.structure.headings.relation.readonly');
-            expect(control?.textContent).toContain('mindfula11y.structure.headings.relation.jump');
-            expect(control?.getAttribute('aria-label')).toBeNull();
+            // The chip shows only the level and an icon; core renders icons
+            // aria-hidden, so the source of the level and the jump affordance
+            // have to reach screen readers as text.
             expect(control?.querySelector('typo3-backend-icon')?.getAttribute('aria-hidden')).toBe('true');
+            const srOnly = control?.querySelector('.sr-only')?.textContent ?? '';
+            expect(srOnly).toContain(labelKey);
+            expect(srOnly).toContain('mindfula11y.structure.headings.relation.jump');
+            // ...and none of it is visible chip text.
+            expect(control?.querySelector('.relation-label')).toBeNull();
+            expect(control?.getAttribute('aria-label')).toBeNull();
         }
     });
 
@@ -407,9 +434,12 @@ describe('HeadingStructure', () => {
         const control = view.renderRoot.querySelector<HTMLElement>('[data-relation-kind="ancestor"]');
 
         expect(control?.tagName).toBe('SPAN');
-        expect(control?.textContent).toContain('mindfula11y.structure.headings.relation.descendant');
-        expect(control?.textContent).toContain('mindfula11y.structure.headings.relation.readonly');
-        expect(control?.textContent).not.toContain('mindfula11y.structure.headings.relation.jump');
+        // Still explained, and still only for screen readers — but without the
+        // jump sentence, because there is nothing to jump to. The lock icon is
+        // the sighted counterpart of that difference.
+        const srOnly = control?.querySelector('.sr-only')?.textContent ?? '';
+        expect(srOnly).toContain('mindfula11y.structure.headings.relation.descendant');
+        expect(srOnly).not.toContain('mindfula11y.structure.headings.relation.jump');
         expect(control?.querySelector('typo3-backend-icon')?.getAttribute('identifier')).toBe('actions-lock');
     });
 });
