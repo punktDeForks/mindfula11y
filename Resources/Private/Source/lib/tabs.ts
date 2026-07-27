@@ -34,7 +34,11 @@ export interface TabDescriptor<T extends string = string> {
     id: T;
     label: string;
     badge?: TemplateResult | typeof nothing;
-    /** Optional: structure.ts disables tabs while the first analysis is still pending. */
+    /**
+     * Defensive option — no current caller renders a disabled tab
+     * (structure.ts shows no tablist at all while its first analysis is
+     * pending). The guards below keep a tablist safe if one ever does.
+     */
     disabled?: boolean;
 }
 
@@ -58,8 +62,16 @@ export const renderTablist = <T extends string>(opts: {
                 aria-selected=${selected ? 'true' : 'false'}
                 aria-controls="panel-${tab.id}"
                 tabindex=${selected ? '0' : '-1'}
-                ?disabled=${tab.disabled ?? false}
-                @click=${(): void => onSelect(tab.id)}
+                aria-disabled=${(tab.disabled ?? false) ? 'true' : nothing}
+                @click=${(): void => {
+                    // aria-disabled (not the disabled attribute): a natively
+                    // disabled *selected* tab would be unfocusable and, with
+                    // every other tab at tabindex -1, drop the whole tablist
+                    // out of the tab order.
+                    if (tab.disabled !== true) {
+                        onSelect(tab.id);
+                    }
+                }}
                 @keydown=${onKeydown}
             >
                 ${tab.label} ${tab.badge ?? nothing}
@@ -85,11 +97,39 @@ export type TabPanelContent<T extends string = string> = {
 export type TabPanelOptions<T extends string = string> = TabPanelContent<T> & {
     active: boolean;
     withTablist: boolean;
+    /** Selects this panel's tab when find-in-page reveals the hidden panel. */
+    onReveal: () => void;
 };
+
+/**
+ * Whether the browser reveals `hidden="until-found"` content for find-in-page.
+ * Feature-detected per render (cheap), NOT assumed: in a non-supporting
+ * browser the value degrades to plain `hidden` semantics only through the
+ * UA's `[hidden] { display: none }` rule — which any author `display` on the
+ * panel (scan sets `display: flex`) silently beats, showing both panels at
+ * once. Unsupporting browsers therefore get the plain `hidden` attribute,
+ * which the component stylesheets re-assert to `display: none`.
+ */
+const untilFoundSupported = (): boolean => 'onbeforematch' in HTMLElement.prototype;
 
 /**
  * Renders one panel's wrapper: a `role="tabpanel"` named by its tab when a
  * tablist exists, else a `role="region"` carrying its own name.
+ *
+ * Inactive panels use `hidden="until-found"` (where supported) so their
+ * findings stay reachable through the browser's find-in-page, which fires
+ * `beforematch` and removes the attribute; `onReveal` then selects the tab so
+ * `aria-selected` and the roving tabindex follow the reveal instead of
+ * silently desyncing. Screen-reader exposure of the CONTENTS is unchanged:
+ * the UA's `content-visibility: hidden` skips them exactly like
+ * `display: none` did. The panel element itself still generates a box in
+ * that state (per spec: margins/background render, only contents are
+ * skipped), so it carries `tabindex` only while active — otherwise Tab would
+ * stop on an invisible zero-height box — and `aria-hidden` while inactive:
+ * the box would otherwise surface as an EMPTY named tabpanel node in the
+ * accessibility tree (verified in Chromium), which browse-mode users would
+ * stumble over. `aria-hidden` only affects the accessibility tree — the
+ * find-in-page index that until-found hooks is untouched.
  */
 export const renderTabPanel = (opts: TabPanelOptions): TemplateResult => {
     const { tab, active, busy, content } = opts;
@@ -103,9 +143,11 @@ export const renderTabPanel = (opts: TabPanelOptions): TemplateResult => {
         role="tabpanel"
         id="panel-${tab}"
         aria-labelledby="tab-${tab}"
-        tabindex="0"
+        tabindex=${active ? '0' : nothing}
         aria-busy=${busy ? 'true' : nothing}
-        ?hidden=${!active}
+        hidden=${active ? nothing : untilFoundSupported() ? 'until-found' : ''}
+        aria-hidden=${active ? nothing : 'true'}
+        @beforematch=${opts.onReveal}
     >
         ${content}
     </div>`;
@@ -125,20 +167,49 @@ export async function activateTabFromKeydown<T extends string>(
     activeTab: T,
     activate: (tab: T) => void,
 ): Promise<void> {
-    const index = tabs.indexOf(activeTab);
+    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft' && event.key !== 'Home' && event.key !== 'End') {
+        return;
+    }
+    // Disabled tabs are skipped, not landed on: this tablist activates on
+    // focus (automatic activation), so cycling onto a disabled tab would
+    // activate it. Disabled state is read from the rendered buttons — the
+    // callers pass ids only, and the DOM is the single source of truth. The
+    // filter runs only for handled keys (it queries the DOM per tab).
+    const enabled = tabs.filter(
+        (tab) => host.renderRoot.querySelector(`[data-tab="${tab}"]`)?.getAttribute('aria-disabled') !== 'true',
+    );
+    if (enabled.length === 0) {
+        return;
+    }
+    // Arrows walk cyclically from the active tab's position in the FULL tab
+    // order to the nearest enabled neighbor. Indexing the enabled-only list
+    // would go wrong exactly when the active tab is itself disabled
+    // (indexOf -1): the neighbor walk keeps "left of the current tab"
+    // meaning the adjacent tab either way.
+    const from = tabs.indexOf(activeTab);
+    const nearestEnabled = (direction: 1 | -1): T | undefined => {
+        for (let step = 1; step <= tabs.length; step++) {
+            const index = (((from + direction * step) % tabs.length) + tabs.length) % tabs.length;
+            const candidate = tabs[index];
+            if (candidate !== undefined && enabled.includes(candidate)) {
+                return candidate;
+            }
+        }
+        return undefined;
+    };
     let next: T | undefined;
     switch (event.key) {
         case 'ArrowRight':
-            next = tabs[(index + 1) % tabs.length];
+            next = nearestEnabled(1);
             break;
         case 'ArrowLeft':
-            next = tabs[(index - 1 + tabs.length) % tabs.length];
+            next = nearestEnabled(-1);
             break;
         case 'Home':
-            next = tabs[0];
+            next = enabled[0];
             break;
         case 'End':
-            next = tabs[tabs.length - 1];
+            next = enabled[enabled.length - 1];
             break;
         default:
             return;
@@ -226,7 +297,19 @@ export class TabsController<T extends string> implements ReactiveController {
 
     /** Renders one panel wrapper around the host-supplied content. */
     renderPanel(opts: TabPanelContent<T>): TemplateResult {
-        return renderTabPanel({ ...opts, withTablist: this.withTablist, active: this.active === opts.tab });
+        return renderTabPanel({
+            ...opts,
+            withTablist: this.withTablist,
+            active: this.active === opts.tab,
+            onReveal: (): void => {
+                // Mirrors the click/arrow guards: a find-in-page match inside
+                // a disabled tab's panel must not activate the disabled tab.
+                const button = this.host.renderRoot.querySelector(`[data-tab="${opts.tab}"]`);
+                if (button?.getAttribute('aria-disabled') !== 'true') {
+                    this.select(opts.tab);
+                }
+            },
+        });
     }
 
     private readonly handleKeydown = (event: KeyboardEvent): void => {

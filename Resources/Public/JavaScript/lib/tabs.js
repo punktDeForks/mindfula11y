@@ -12,8 +12,12 @@ const renderTablist = (opts) => {
                 aria-selected=${selected ? "true" : "false"}
                 aria-controls="panel-${tab.id}"
                 tabindex=${selected ? "0" : "-1"}
-                ?disabled=${tab.disabled ?? false}
-                @click=${() => onSelect(tab.id)}
+                aria-disabled=${tab.disabled ?? false ? "true" : nothing}
+                @click=${() => {
+      if (tab.disabled !== true) {
+        onSelect(tab.id);
+      }
+    }}
                 @keydown=${onKeydown}
             >
                 ${tab.label} ${tab.badge ?? nothing}
@@ -21,6 +25,7 @@ const renderTablist = (opts) => {
   })}
     </div>`;
 };
+const untilFoundSupported = () => "onbeforematch" in HTMLElement.prototype;
 const renderTabPanel = (opts) => {
   const { tab, active, busy, content } = opts;
   if (!opts.withTablist) {
@@ -33,28 +38,49 @@ const renderTabPanel = (opts) => {
         role="tabpanel"
         id="panel-${tab}"
         aria-labelledby="tab-${tab}"
-        tabindex="0"
+        tabindex=${active ? "0" : nothing}
         aria-busy=${busy ? "true" : nothing}
-        ?hidden=${!active}
+        hidden=${active ? nothing : untilFoundSupported() ? "until-found" : ""}
+        aria-hidden=${active ? nothing : "true"}
+        @beforematch=${opts.onReveal}
     >
         ${content}
     </div>`;
 };
 async function activateTabFromKeydown(host, event, tabs, activeTab, activate) {
-  const index = tabs.indexOf(activeTab);
+  if (event.key !== "ArrowRight" && event.key !== "ArrowLeft" && event.key !== "Home" && event.key !== "End") {
+    return;
+  }
+  const enabled = tabs.filter(
+    (tab) => host.renderRoot.querySelector(`[data-tab="${tab}"]`)?.getAttribute("aria-disabled") !== "true"
+  );
+  if (enabled.length === 0) {
+    return;
+  }
+  const from = tabs.indexOf(activeTab);
+  const nearestEnabled = (direction) => {
+    for (let step = 1; step <= tabs.length; step++) {
+      const index = ((from + direction * step) % tabs.length + tabs.length) % tabs.length;
+      const candidate = tabs[index];
+      if (candidate !== void 0 && enabled.includes(candidate)) {
+        return candidate;
+      }
+    }
+    return void 0;
+  };
   let next;
   switch (event.key) {
     case "ArrowRight":
-      next = tabs[(index + 1) % tabs.length];
+      next = nearestEnabled(1);
       break;
     case "ArrowLeft":
-      next = tabs[(index - 1 + tabs.length) % tabs.length];
+      next = nearestEnabled(-1);
       break;
     case "Home":
-      next = tabs[0];
+      next = enabled[0];
       break;
     case "End":
-      next = tabs[tabs.length - 1];
+      next = enabled[enabled.length - 1];
       break;
     default:
       return;
@@ -123,7 +149,17 @@ class TabsController {
   }
   /** Renders one panel wrapper around the host-supplied content. */
   renderPanel(opts) {
-    return renderTabPanel({ ...opts, withTablist: this.withTablist, active: this.active === opts.tab });
+    return renderTabPanel({
+      ...opts,
+      withTablist: this.withTablist,
+      active: this.active === opts.tab,
+      onReveal: () => {
+        const button = this.host.renderRoot.querySelector(`[data-tab="${opts.tab}"]`);
+        if (button?.getAttribute("aria-disabled") !== "true") {
+          this.select(opts.tab);
+        }
+      }
+    });
   }
 }
 export {

@@ -39,6 +39,16 @@
         container-type: inline-size;
     }
 
+    /*
+     * Inactive tab panels are hidden with `hidden="until-found"` (UA
+     * `content-visibility: hidden`) so both trees stay find-in-page
+     * searchable; the empty box still takes one slot in the column gap of
+     * `.body` — the negative margin cancels exactly that one gap.
+     */
+    .panel[hidden="until-found"] {
+        margin-block-start: calc(-1 * var(--mindfula11y-space-xs));
+    }
+
     .error-actions {
         display: flex;
         flex-wrap: wrap;

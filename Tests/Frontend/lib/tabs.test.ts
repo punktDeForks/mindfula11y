@@ -15,17 +15,27 @@ import { html, LitElement, render } from 'lit';
 import { afterEach, describe, expect, it } from 'vitest';
 import { TabsController } from '../../../Resources/Private/Source/lib/tabs.js';
 
+// happy-dom knows no beforematch/until-found; the panel renderer feature-
+// detects support through this property, so declare it to exercise the
+// until-found path (individual tests delete it to cover the fallback).
+Object.defineProperty(HTMLElement.prototype, 'onbeforematch', {
+    value: null,
+    writable: true,
+    configurable: true,
+});
+
 type TestTab = 'one' | 'two' | 'three';
 
 class TabsHost extends LitElement {
     availableTabs: TestTab[] = ['one', 'two', 'three'];
+    disabledTabs: Set<TestTab> = new Set();
 
     readonly tabs: TabsController<TestTab> = new TabsController(this, () => this.availableTabs, 'one');
 
     override render(): TemplateResult {
         return html`${this.tabs.renderTablist({
             ariaLabel: 'Test tabs',
-            tabs: this.availableTabs.map((id) => ({ id, label: id })),
+            tabs: this.availableTabs.map((id) => ({ id, label: id, disabled: this.disabledTabs.has(id) })),
         })}
         ${this.availableTabs.map((tab) =>
             this.tabs.renderPanel({ tab, busy: false, content: html`<p>${tab}</p>`, label: tab }),
@@ -152,6 +162,115 @@ describe('TabsController', () => {
         host.tabs.ensureActive('one');
 
         expect(host.tabs.activeTab).toBe('two');
+    });
+
+    it('hides inactive panels with hidden="until-found" so find-in-page can reach them', async () => {
+        const host = await mount();
+
+        expect(host.shadowRoot?.querySelector('#panel-one')?.hasAttribute('hidden')).toBe(false);
+        expect(host.shadowRoot?.querySelector('#panel-two')?.getAttribute('hidden')).toBe('until-found');
+        expect(host.shadowRoot?.querySelector('#panel-three')?.getAttribute('hidden')).toBe('until-found');
+        // The until-found box still renders (only contents are skipped), so an
+        // inactive panel must not be a sequential tab stop nor surface as an
+        // empty tabpanel node in the accessibility tree.
+        expect(host.shadowRoot?.querySelector('#panel-one')?.getAttribute('tabindex')).toBe('0');
+        expect(host.shadowRoot?.querySelector('#panel-two')?.hasAttribute('tabindex')).toBe(false);
+        expect(host.shadowRoot?.querySelector('#panel-one')?.hasAttribute('aria-hidden')).toBe(false);
+        expect(host.shadowRoot?.querySelector('#panel-two')?.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('falls back to the plain hidden attribute where until-found is unsupported', async () => {
+        // Without the fallback, panels that set their own `display` would beat
+        // the UA [hidden] rule in non-supporting browsers and stay visible.
+        const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'onbeforematch');
+        Reflect.deleteProperty(HTMLElement.prototype, 'onbeforematch');
+        try {
+            const host = await mount();
+            expect(host.shadowRoot?.querySelector('#panel-two')?.getAttribute('hidden')).toBe('');
+        } finally {
+            if (descriptor !== undefined) {
+                Object.defineProperty(HTMLElement.prototype, 'onbeforematch', descriptor);
+            }
+        }
+    });
+
+    it('selects the tab of a panel that find-in-page reveals, keeping tablist state in sync', async () => {
+        const host = await mount();
+
+        // The browser fires beforematch on the hidden panel right before it
+        // removes the until-found attribute to reveal a find-in-page match.
+        host.shadowRoot?.querySelector('#panel-two')?.dispatchEvent(new Event('beforematch'));
+        await host.updateComplete;
+
+        expect(host.tabs.activeTab).toBe('two');
+        expect(tabButton(host, 'two').getAttribute('aria-selected')).toBe('true');
+        expect(tabButton(host, 'two').getAttribute('tabindex')).toBe('0');
+        expect(host.shadowRoot?.querySelector('#panel-two')?.hasAttribute('hidden')).toBe(false);
+        expect(host.shadowRoot?.querySelector('#panel-one')?.getAttribute('hidden')).toBe('until-found');
+    });
+
+    it('renders disabled tabs focusable via aria-disabled and ignores their clicks', async () => {
+        const host = await mount();
+        host.disabledTabs = new Set<TestTab>(['two']);
+        host.requestUpdate();
+        await host.updateComplete;
+
+        const disabled = tabButton(host, 'two');
+        // aria-disabled, never the disabled attribute: a natively disabled
+        // selected tab would drop the whole roving-tabindex tablist from the
+        // keyboard tab order.
+        expect(disabled.hasAttribute('disabled')).toBe(false);
+        expect(disabled.getAttribute('aria-disabled')).toBe('true');
+
+        disabled.click();
+        await host.updateComplete;
+        expect(host.tabs.activeTab).toBe('one');
+    });
+
+    it('skips disabled tabs when cycling with arrow keys', async () => {
+        const host = await mount();
+        host.disabledTabs = new Set<TestTab>(['two']);
+        host.requestUpdate();
+        await host.updateComplete;
+
+        // Automatic activation: landing on a disabled tab would activate it,
+        // so cycling passes over it in both directions.
+        await pressKey(host, 'one', 'ArrowRight');
+        expect(host.tabs.activeTab).toBe('three');
+
+        await pressKey(host, 'three', 'ArrowLeft');
+        expect(host.tabs.activeTab).toBe('one');
+    });
+
+    it('steps to the adjacent enabled tab when the active tab is itself disabled', async () => {
+        const host = await mount();
+        host.tabs.select('two');
+        host.disabledTabs = new Set<TestTab>(['two']);
+        host.requestUpdate();
+        await host.updateComplete;
+
+        // The walk starts from the active tab's position in the FULL order, so
+        // "left of two" is one — not an end of the enabled-only list.
+        await pressKey(host, 'two', 'ArrowLeft');
+        expect(host.tabs.activeTab).toBe('one');
+
+        host.tabs.select('two');
+        await host.updateComplete;
+        await pressKey(host, 'two', 'ArrowRight');
+        expect(host.tabs.activeTab).toBe('three');
+    });
+
+    it('does not select a disabled tab when find-in-page reveals its panel', async () => {
+        const host = await mount();
+        host.disabledTabs = new Set<TestTab>(['two']);
+        host.requestUpdate();
+        await host.updateComplete;
+
+        host.shadowRoot?.querySelector('#panel-two')?.dispatchEvent(new Event('beforematch'));
+        await host.updateComplete;
+
+        expect(host.tabs.activeTab).toBe('one');
+        expect(tabButton(host, 'two').getAttribute('aria-selected')).toBe('false');
     });
 
     it('names the single view as a region when there is no tablist to name it', async () => {
