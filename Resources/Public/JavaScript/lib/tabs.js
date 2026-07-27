@@ -22,9 +22,11 @@ const renderTablist = (opts) => {
     </div>`;
 };
 const renderTabPanel = (opts) => {
-  const { tab, active, withTablist, busy, content } = opts;
-  if (!withTablist) {
-    return html`<div class="panel" aria-busy=${busy ? "true" : nothing}>${content}</div>`;
+  const { tab, active, busy, content } = opts;
+  if (!opts.withTablist) {
+    return html`<div class="panel" role="region" aria-label=${opts.label} aria-busy=${busy ? "true" : nothing}>
+            ${content}
+        </div>`;
   }
   return html`<div
         class="panel"
@@ -95,8 +97,23 @@ class TabsController {
       this.active = available[0] ?? fallback;
     }
   }
-  /** Renders the tablist for the host-built descriptors of the current tab set. */
+  /**
+   * Whether the container shows tab chrome at all. Derived from the tab set
+   * the controller already owns, so the rule lives here rather than at every
+   * call site: a lone tab has nothing to switch between, and its panel names
+   * itself as a region instead of being named by an absent tab.
+   */
+  get withTablist() {
+    return this.tabs().length > 1;
+  }
+  /**
+   * Renders the tablist for the host-built descriptors of the current tab
+   * set, or nothing when a single tab makes the chrome pointless.
+   */
   renderTablist(opts) {
+    if (!this.withTablist) {
+      return nothing;
+    }
     return renderTablist({
       ...opts,
       activeTab: this.active,
@@ -106,7 +123,7 @@ class TabsController {
   }
   /** Renders one panel wrapper around the host-supplied content. */
   renderPanel(opts) {
-    return renderTabPanel({ ...opts, active: this.active === opts.tab });
+    return renderTabPanel({ ...opts, withTablist: this.withTablist, active: this.active === opts.tab });
   }
 }
 export {

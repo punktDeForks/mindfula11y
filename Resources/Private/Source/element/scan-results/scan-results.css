@@ -40,10 +40,6 @@
         background-color: var(--mindfula11y-component-bg);
         border: 1px solid var(--mindfula11y-border);
         border-radius: var(--mindfula11y-radius);
-
-        &[open] .marker {
-            rotate: 180deg;
-        }
     }
 
     .disclosure {
@@ -54,12 +50,6 @@
         min-block-size: var(--mindfula11y-control-min-size);
         padding-block: var(--mindfula11y-space-2xs);
         padding-inline: var(--mindfula11y-space-xs);
-        cursor: pointer;
-        list-style: none;
-
-        &::-webkit-details-marker {
-            display: none;
-        }
     }
 
     .rule-description {
@@ -113,7 +103,7 @@
     }
 
     .detail {
-        max-inline-size: 70ch;
+        max-inline-size: var(--mindfula11y-line-limit);
         overflow-wrap: anywhere;
     }
 
@@ -196,12 +186,12 @@
     }
 
     .message {
-        max-inline-size: 70ch;
+        max-inline-size: var(--mindfula11y-line-limit);
     }
 
     /* Suggestions read as advisory, quote-like insets — informational accent. */
     .suggestion {
-        max-inline-size: 70ch;
+        max-inline-size: var(--mindfula11y-line-limit);
         padding-inline-start: var(--mindfula11y-space-xs);
         border-inline-start: 3px solid var(--mindfula11y-state-info-border);
     }

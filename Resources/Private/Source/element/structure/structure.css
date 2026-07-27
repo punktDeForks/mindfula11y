@@ -24,16 +24,19 @@
  * styles/findings.css. Rules here only add role-specific geometry on top.
  */
 @layer component {
-    .structure {
+    /*
+     * The widget's column rhythm, stated once for the host wrapper and for the
+     * disclosure body — the expanded widget keeps one rhythm from the callout
+     * down to the tree because both read the same declaration.
+     */
+    :is(.structure, .body) {
         display: flex;
         flex-direction: column;
         gap: var(--mindfula11y-space-xs);
-        container-type: inline-size;
     }
 
-    .title {
-        font-size: var(--mindfula11y-font-size-display-lg);
-        font-weight: 700;
+    .structure {
+        container-type: inline-size;
     }
 
     .error-actions {
@@ -47,25 +50,18 @@
     }
 
     /*
-     * `<summary>` is a full-width block by default; without a width cap the
-     * click target and the :focus-visible ring would extend well past the
-     * `.notice` callout's 70ch cap into empty space. Shrinking to fit-content
-     * (bounded to the available width) keeps the target aligned with what is
-     * actually visible, while staying ≥24px and keyboard-operable.
+     * `<summary>` is a full-width block by default, but the `.notice` it wraps
+     * stops at the reading measure — the click target and the :focus-visible
+     * ring would run past the callout into empty space. Measuring the summary
+     * itself keeps it exactly as wide as the row an editor sees, and as wide
+     * as the sibling alt-text and scan rows.
      */
     .disclosure {
         display: block;
-        inline-size: fit-content;
-        max-inline-size: 100%;
-        cursor: pointer;
-        list-style: none;
-
-        &::-webkit-details-marker {
-            display: none;
-        }
+        max-inline-size: var(--mindfula11y-line-limit);
     }
 
-    .chevron {
+    .marker {
         margin-inline-start: auto;
     }
 
@@ -73,14 +69,10 @@
      * The disclosure's collapsible content: `<details>` itself stays
      * unstyled (Chromium wraps its content in a `::details-content` slot
      * box, so `display: flex` here would not reach these children), this
-     * wrapper restores the `.structure` column rhythm that moving the
+     * wrapper restores the shared column rhythm that moving the
      * tablist/pills/panels inside `<details>` took them out of.
      */
     .body {
-        display: flex;
-        flex-direction: column;
-        gap: var(--mindfula11y-space-xs);
-
         /*
          * The `<summary>` row is a sibling inside `<details>`, not inside
          * `.structure`'s flex column, so its gap to the content is this

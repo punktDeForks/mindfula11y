@@ -69,20 +69,34 @@ export const renderTablist = <T extends string>(opts: {
 };
 
 /**
- * Renders one panel's wrapper. `withTablist=false` produces a plain
- * `aria-busy` wrapper with no tabpanel ARIA (the single-view case, where the
- * caller renders its own heading/context instead of a tablist).
+ * What a panel needs; the controller derives `active` and `withTablist` from
+ * the tab set itself. `label` is always required: without a tablist there is
+ * no tab to name the panel and it becomes a labelled region instead, and an
+ * unnamed region is inert — so the compiler asks for the name unconditionally
+ * rather than a doc comment asking for it in one of two cases.
  */
-export const renderTabPanel = (opts: {
-    tab: string;
-    active: boolean;
-    withTablist: boolean;
+export type TabPanelContent<T extends string = string> = {
+    tab: T;
     busy: boolean;
     content: TemplateResult;
-}): TemplateResult => {
-    const { tab, active, withTablist, busy, content } = opts;
-    if (!withTablist) {
-        return html`<div class="panel" aria-busy=${busy ? 'true' : nothing}>${content}</div>`;
+    label: string;
+};
+
+export type TabPanelOptions<T extends string = string> = TabPanelContent<T> & {
+    active: boolean;
+    withTablist: boolean;
+};
+
+/**
+ * Renders one panel's wrapper: a `role="tabpanel"` named by its tab when a
+ * tablist exists, else a `role="region"` carrying its own name.
+ */
+export const renderTabPanel = (opts: TabPanelOptions): TemplateResult => {
+    const { tab, active, busy, content } = opts;
+    if (!opts.withTablist) {
+        return html`<div class="panel" role="region" aria-label=${opts.label} aria-busy=${busy ? 'true' : nothing}>
+            ${content}
+        </div>`;
     }
     return html`<div
         class="panel"
@@ -184,8 +198,24 @@ export class TabsController<T extends string> implements ReactiveController {
         }
     }
 
-    /** Renders the tablist for the host-built descriptors of the current tab set. */
-    renderTablist(opts: { ariaLabel: string; tabs: TabDescriptor<T>[] }): TemplateResult {
+    /**
+     * Whether the container shows tab chrome at all. Derived from the tab set
+     * the controller already owns, so the rule lives here rather than at every
+     * call site: a lone tab has nothing to switch between, and its panel names
+     * itself as a region instead of being named by an absent tab.
+     */
+    private get withTablist(): boolean {
+        return this.tabs().length > 1;
+    }
+
+    /**
+     * Renders the tablist for the host-built descriptors of the current tab
+     * set, or nothing when a single tab makes the chrome pointless.
+     */
+    renderTablist(opts: { ariaLabel: string; tabs: TabDescriptor<T>[] }): TemplateResult | typeof nothing {
+        if (!this.withTablist) {
+            return nothing;
+        }
         return renderTablist<T>({
             ...opts,
             activeTab: this.active,
@@ -195,8 +225,8 @@ export class TabsController<T extends string> implements ReactiveController {
     }
 
     /** Renders one panel wrapper around the host-supplied content. */
-    renderPanel(opts: { tab: T; withTablist: boolean; busy: boolean; content: TemplateResult }): TemplateResult {
-        return renderTabPanel({ ...opts, active: this.active === opts.tab });
+    renderPanel(opts: TabPanelContent<T>): TemplateResult {
+        return renderTabPanel({ ...opts, withTablist: this.withTablist, active: this.active === opts.tab });
     }
 
     private readonly handleKeydown = (event: KeyboardEvent): void => {

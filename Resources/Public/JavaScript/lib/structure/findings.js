@@ -10,31 +10,29 @@ const domainErrors = (analysis, domain) => {
   return slice?.errors ?? [];
 };
 const pageErrors = (analysis, domain) => domainErrors(analysis, domain).filter((error) => error.nodeId === null);
-const severityCounts = (analysis, domain) => {
+const severityCounts = (analysis, domains) => {
   const counts = { critical: 0, serious: 0, moderate: 0, minor: 0 };
-  for (const error of domainErrors(analysis, domain)) {
-    counts[error.severity] += 1;
+  for (const domain of domains) {
+    for (const error of domainErrors(analysis, domain)) {
+      counts[error.severity] += 1;
+    }
   }
   return counts;
 };
-const aggregateFindings = (analysis, enabled) => {
+const aggregateFindings = (analysis, domain) => {
   const findings = /* @__PURE__ */ new Map();
-  for (const domain of enabledDomains(enabled)) {
-    for (const error of domainErrors(analysis, domain)) {
-      const findingKey = `${domain} ${error.key}`;
-      const existing = findings.get(findingKey);
-      if (existing === void 0) {
-        findings.set(findingKey, {
-          key: error.key,
-          severity: error.severity,
-          count: 1,
-          domain,
-          viewports: [...error.viewports]
-        });
-      } else {
-        existing.count += 1;
-        existing.viewports = mergeViewports(existing.viewports, error.viewports);
-      }
+  for (const error of domainErrors(analysis, domain)) {
+    const existing = findings.get(error.key);
+    if (existing === void 0) {
+      findings.set(error.key, {
+        key: error.key,
+        severity: error.severity,
+        count: 1,
+        viewports: [...error.viewports]
+      });
+    } else {
+      existing.count += 1;
+      existing.viewports = mergeViewports(existing.viewports, error.viewports);
     }
   }
   return Array.from(findings.values()).sort(

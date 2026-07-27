@@ -28,7 +28,7 @@ class TabsHost extends LitElement {
             tabs: this.availableTabs.map((id) => ({ id, label: id })),
         })}
         ${this.availableTabs.map((tab) =>
-            this.tabs.renderPanel({ tab, withTablist: true, busy: false, content: html`<p>${tab}</p>` }),
+            this.tabs.renderPanel({ tab, busy: false, content: html`<p>${tab}</p>`, label: tab }),
         )}`;
     }
 }
@@ -154,14 +154,29 @@ describe('TabsController', () => {
         expect(host.tabs.activeTab).toBe('two');
     });
 
-    it('renders a plain aria-busy wrapper without tabpanel semantics when there is no tablist', async () => {
+    it('names the single view as a region when there is no tablist to name it', async () => {
         const host = await mount();
+        // A lone tab is the whole trigger: the controller derives the absence
+        // of tab chrome from the tab set, callers never pass it in.
+        host.availableTabs = ['one'];
         const container = document.createElement('div');
-        render(host.tabs.renderPanel({ tab: 'one', withTablist: false, busy: true, content: html`x` }), container);
+        render(
+            host.tabs.renderPanel({
+                tab: 'one',
+                busy: true,
+                content: html`x`,
+                label: 'Headings',
+            }),
+            container,
+        );
 
+        // No tab exists to label this panel, so it carries its own name
+        // instead of being an anonymous container — and it is never hidden or
+        // a tabpanel, because there is nothing to switch between.
         const panel = container.querySelector('.panel');
+        expect(panel?.getAttribute('role')).toBe('region');
+        expect(panel?.getAttribute('aria-label')).toBe('Headings');
         expect(panel?.getAttribute('aria-busy')).toBe('true');
-        expect(panel?.getAttribute('role')).toBeNull();
         expect(panel?.hasAttribute('hidden')).toBe(false);
     });
 });

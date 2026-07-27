@@ -13,7 +13,6 @@ import Client from "@typo3/backend/storage/client.js";
 import { lll } from "@typo3/core/lit-helper.js";
 import { html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { literal, html as staticHtml } from "lit/static-html.js";
 import "@typo3/backend/element/icon-element.js";
 import "@typo3/backend/element/spinner-element.js";
 import "../heading-structure/heading-structure.js";
@@ -21,41 +20,31 @@ import "../landmark-structure/landmark-structure.js";
 import "../notice/notice.js";
 import { LiveAnnouncer } from "../../lib/live-announcer.js";
 import {
-  IMPACT_ORDER,
   impactState,
   renderCountBadge,
-  renderLoadingPlaceholder,
+  renderDisclosureMarker,
+  renderFindingPill,
   renderNoticeBody,
+  renderProgressNotice,
   renderSeverityChip,
+  renderSeverityLabel,
   renderViewportBadges,
-  severityLabelKey
+  severityLabelKey,
+  totalCount,
+  worstImpact
 } from "../../lib/status-render.js";
 import { StructureAnalysisError } from "../../lib/structure/error.js";
-import {
-  aggregateFindings,
-  enabledDomains,
-  pageErrors,
-  severityCounts
-} from "../../lib/structure/findings.js";
+import { aggregateFindings, enabledDomains, pageErrors, severityCounts } from "../../lib/structure/findings.js";
 import { TabsController } from "../../lib/tabs.js";
 import { StructureAnalysisCoordinator } from "../../service/structure/coordinator.js";
 import { baseStyles } from "../../styles/base-styles.js";
 import buttonStyles from "../../styles/button.css.js";
+import disclosureStyles from "../../styles/disclosure.css.js";
 import findingsStyles from "../../styles/findings.css.js";
 import noticeStyles from "../../styles/notice.css.js";
-import placeholderStyles from "../../styles/placeholder.css.js";
 import tabsStyles from "../../styles/tabs.css.js";
 import viewportStyles from "../../styles/viewport.css.js";
 import componentStyles from "./structure.css.js";
-const FALLBACK_HEADING_TAG = literal`h2`;
-const HEADING_TAGS = {
-  1: literal`h1`,
-  2: literal`h2`,
-  3: literal`h3`,
-  4: literal`h4`,
-  5: literal`h5`,
-  6: literal`h6`
-};
 const EXPANDED_STORAGE_KEY = "mindfula11y-structure-expanded";
 const DOMAINS = {
   headings: {
@@ -83,12 +72,17 @@ let Structure = class extends LitElement {
     super();
     this.pageId = 0;
     this.languageId = 0;
-    this.headingLevel = 2;
     this.hasHeadingStructureAccess = false;
     this.hasLandmarkStructureAccess = false;
     this.collapsible = false;
     this.analysis = null;
-    this.expanded = Client.get(EXPANDED_STORAGE_KEY) === "1";
+    /**
+     * Mirror of the native `open` state, kept only so a re-render (a
+     * save-triggered re-analysis) re-applies it. Deliberately NOT reactive:
+     * `<details>` owns the state, and re-rendering on toggle would rebuild
+     * both structure trees for a state the browser has already applied.
+     */
+    this.expanded = false;
     this.announcer = new LiveAnnouncer(this);
     this.coordinator = StructureAnalysisCoordinator.createDefault();
     this.tabs = new TabsController(
@@ -122,6 +116,18 @@ let Structure = class extends LitElement {
       void this.analyzeTask.run();
     });
   }
+  /**
+   * Restores the remembered disclosure state. Read here rather than in the
+   * constructor: `collapsible` is only set once attributes are applied, so
+   * this is the first moment the surface that has no disclosure at all can
+   * skip the storage read.
+   */
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.collapsible) {
+      this.expanded = Client.get(EXPANDED_STORAGE_KEY) === "1";
+    }
+  }
   disconnectedCallback() {
     this.analyzeTask.abort();
     super.disconnectedCallback();
@@ -133,7 +139,6 @@ let Structure = class extends LitElement {
   }
   render() {
     return html`<div class="structure">
-            ${this.collapsible ? nothing : this.renderHeader()}
             ${this.announcer.render()}
             <div class="status-region" role="status">${this.renderError()}</div>
             ${this.renderErrorActions()}
@@ -141,39 +146,28 @@ let Structure = class extends LitElement {
         </div>`;
   }
   enabledTabs() {
-    return enabledDomains(this.enabledFlags());
-  }
-  enabledFlags() {
-    return {
+    return enabledDomains({
       headings: this.hasHeadingStructureAccess,
       landmarks: this.hasLandmarkStructureAccess
-    };
+    });
   }
-  renderHeader() {
-    const tabs = this.enabledTabs();
-    if (tabs.length < 2) {
-      const single = tabs[0];
-      return single === void 0 ? nothing : this.renderHeading(this.tabLabel(single));
-    }
-    return this.renderTablist();
-  }
-  renderTablist() {
+  renderTablist(tabs) {
     return this.tabs.renderTablist({
       ariaLabel: lll("mindfula11y.structure"),
-      tabs: this.enabledTabs().map((tab) => this.tabDescriptor(tab))
+      tabs: tabs.map((tab) => this.tabDescriptor(tab))
     });
   }
   tabDescriptor(tab) {
     return {
       id: tab,
       label: this.tabLabel(tab),
-      badge: this.renderTabBadge(severityCounts(this.analysis, tab)),
+      badge: this.renderTabBadge(severityCounts(this.analysis, [tab])),
       disabled: this.analysis === null && this.analyzeTask.status === TaskStatus.PENDING
     };
   }
   /** Count badge of the domain's worst present impact (worst-first, like the scan view). */
   renderTabBadge(counts) {
-    const worst = IMPACT_ORDER.find((impact) => counts[impact] > 0);
+    const worst = worstImpact(counts);
     if (worst === void 0) {
       return nothing;
     }
@@ -219,37 +213,44 @@ let Structure = class extends LitElement {
                   </a>`}
         </div>`;
   }
+  /**
+   * Both surfaces render the same thing — status row, tablist, panels — and
+   * differ only in that the page module folds everything below the row into
+   * a disclosure whose summary IS that row.
+   */
   renderBody() {
     if (this.analyzeTask.status === TaskStatus.ERROR) {
       return nothing;
     }
     if (this.analysis === null) {
-      return this.collapsible ? html`<mindfula11y-notice state="info">
-                      <typo3-backend-spinner slot="icon" size="small"></typo3-backend-spinner>
-                      <span>${lll("mindfula11y.structure.analyzing")}</span>
-                  </mindfula11y-notice>` : renderLoadingPlaceholder(lll("mindfula11y.structure.analyzing"));
+      return renderProgressNotice(lll("mindfula11y.structure.analyzing"));
     }
     const tabs = this.enabledTabs();
-    const content = html`${this.collapsible && tabs.length > 1 ? this.renderTablist() : nothing}${this.renderSummary()}
-        ${tabs.map((tab) => this.renderPanel(tab, tabs.length > 1))}`;
+    const content = html`${this.renderTablist(tabs)}${tabs.map((tab) => this.renderPanel(tab))}`;
+    const statusRow = this.renderStatusRow(severityCounts(this.analysis, tabs));
     if (!this.collapsible) {
-      return html`${this.renderStatusRow(false)}${content}`;
+      return html`${statusRow}${content}`;
     }
     return html`<details ?open=${this.expanded} @toggle=${(event) => this.handleToggle(event)}>
-            <summary class="disclosure">${this.renderStatusRow(true)}</summary>
+            <summary class="disclosure">${statusRow}</summary>
             <div class="body">${content}</div>
         </details>`;
   }
-  renderPanel(tab, withTabs) {
-    const busy = this.analyzeTask.status === TaskStatus.PENDING;
+  /**
+   * A domain's panel carries its own findings: the pills are jump targets
+   * into the view right below them, so listing another tab's findings here
+   * would offer jumps into a hidden panel.
+   */
+  renderPanel(tab) {
     const domain = DOMAINS[tab];
     const analysis = this.analysis === null ? null : domain.analysisOf(this.analysis);
-    const view = domain.renderView(analysis, pageErrors(this.analysis, tab));
     return this.tabs.renderPanel({
       tab,
-      withTablist: withTabs,
-      busy,
-      content: view
+      busy: this.analyzeTask.status === TaskStatus.PENDING,
+      content: html`${this.renderFindings(tab)}${domain.renderView(analysis, pageErrors(this.analysis, tab))}`,
+      // Used only without a tablist, where nothing else names this view —
+      // the status row above speaks for the widget, not for the domain.
+      label: this.tabLabel(tab)
     });
   }
   /**
@@ -270,90 +271,59 @@ let Structure = class extends LitElement {
   /**
    * The widget's aggregate state in the overview callout's standardized
    * notice register — the same row shape as the alt-text count and the scan
-   * status. The state follows the worst impact actually present (structure
-   * findings are all axe best practices, so a minor-only page must not read
-   * as loud as a scan with serious violations), and the per-severity counts
-   * repeat the tab badges for the collapsed layout, where the tabs are out
-   * of sight.
+   * status: message, then the shared issue-count badge. The state follows
+   * the worst impact actually present, so a minor-only page does not read as
+   * loud as a scan with serious violations (structure findings are all axe
+   * best practices); the per-severity split stays on the tab badges and the
+   * findings pills inside.
+   *
+   * The worst impact reaches assistive technology as text via
+   * `renderSeverityLabel`, not by tint alone: the notice's state icon is
+   * aria-hidden (core hardcodes that in Icon::render()) and two impacts
+   * share one icon.
    */
-  renderStatusRow(withChevron) {
-    const counts = this.totalCounts();
-    const present = IMPACT_ORDER.filter((impact) => counts[impact] > 0);
-    const worst = present[0];
-    const total = present.reduce((sum, impact) => sum + counts[impact], 0);
-    return html`<mindfula11y-notice
-            class="status-row"
-            state=${worst === void 0 ? "success" : impactState(worst)}
-        >
-            <span
-                >${worst === void 0 ? lll("mindfula11y.structure.noIssues") : lll("mindfula11y.structure.issuesFound", total)}</span
-            >
-            ${present.map(
-      (impact) => renderCountBadge(
-        impactState(impact),
-        counts[impact],
-        `${counts[impact]} ${lll(severityLabelKey(impact))}`
-      )
-    )}
-            ${withChevron ? html`<typo3-backend-icon
-                      class="chevron"
-                      identifier=${this.expanded ? "actions-chevron-down" : "actions-chevron-right"}
-                      size="small"
-                  ></typo3-backend-icon>` : nothing}
+  renderStatusRow(totals) {
+    const worst = worstImpact(totals);
+    if (worst === void 0) {
+      return html`<mindfula11y-notice state="success">
+                <span>${lll("mindfula11y.structure.noIssues")}</span>${this.renderMarker()}
+            </mindfula11y-notice>`;
+    }
+    return html`<mindfula11y-notice state=${impactState(worst)} count=${totalCount(totals)}>
+            ${renderSeverityLabel(worst, "mindfula11y.structure.issuesFound")}${this.renderMarker()}
         </mindfula11y-notice>`;
   }
-  /** Finding totals across the enabled domains — the tab badges' counts, summed. */
-  totalCounts() {
-    const totals = { critical: 0, serious: 0, moderate: 0, minor: 0 };
-    for (const domain of this.enabledTabs()) {
-      const counts = severityCounts(this.analysis, domain);
-      for (const impact of IMPACT_ORDER) {
-        totals[impact] += counts[impact];
-      }
-    }
-    return totals;
+  /** The disclosure chevron — part of the status row on the page-module surface only. */
+  renderMarker() {
+    return this.collapsible ? renderDisclosureMarker("trailing") : nothing;
   }
-  renderSummary() {
-    const findings = aggregateFindings(this.analysis, this.enabledFlags());
+  renderFindings(tab) {
+    const findings = aggregateFindings(this.analysis, tab);
     if (findings.length === 0) {
       return nothing;
     }
-    return html`<div class="summary">
-            <ul class="findings" aria-label=${lll("mindfula11y.structureErrors")}>
-                ${findings.map(
-      (finding) => html`<li>
-                        <button
-                            type="button"
-                            class="notice finding"
-                            data-state=${impactState(finding.severity)}
-                            data-variant="pill"
-                            @click=${() => {
-        void this.handleFindingClick(finding);
-      }}
-                        >
-                            ${renderSeverityChip(finding.severity, finding.key)}
-                            <strong class="finding-count"
-                                >${lll("mindfula11y.structure.findingCount", finding.count)}</strong
-                            >
-                            ${renderViewportBadges(finding.viewports)}
-                        </button>
-                    </li>`
+    return html`<ul class="findings" aria-label=${lll("mindfula11y.structureErrors")}>
+            ${findings.map(
+      (finding) => renderFindingPill(
+        finding.severity,
+        () => this.focusFinding(tab, finding.key),
+        html`${renderSeverityChip(finding.severity, finding.key)}
+                    <strong class="finding-count">${lll("mindfula11y.structure.findingCount", finding.count)}</strong>
+                    ${renderViewportBadges(finding.viewports)}`
+      )
     )}
-            </ul>
-        </div>`;
-  }
-  renderHeading(content) {
-    const tag = HEADING_TAGS[this.headingLevel] ?? FALLBACK_HEADING_TAG;
-    return staticHtml`<${tag} class="title">${content}</${tag}>`;
+        </ul>`;
   }
   tabLabel(tab) {
     return lll(DOMAINS[tab].labelKey);
   }
-  async handleFindingClick(finding) {
-    this.tabs.select(finding.domain);
-    await this.updateComplete;
-    const view = this.renderRoot.querySelector(DOMAINS[finding.domain].tag);
-    view?.focusFirstIssue(finding.key);
+  /**
+   * Jumps to the finding's first occurrence. No tab switch is needed: a
+   * pill only exists in its own domain's panel, and an inactive panel is
+   * `hidden`, so the finding's view is the one on screen.
+   */
+  focusFinding(tab, key) {
+    this.renderRoot.querySelector(DOMAINS[tab].tag)?.focusFirstIssue(key);
   }
   /**
    * Announces the analysis outcome with total moderate/minor counts — the
@@ -361,7 +331,7 @@ let Structure = class extends LitElement {
    * best practices; a future higher-impact rule must extend the label).
    */
   async announceResult(signal, isRefresh) {
-    const { moderate, minor } = this.totalCounts();
+    const { moderate, minor } = severityCounts(this.analysis, this.enabledTabs());
     const key = isRefresh ? "mindfula11y.structure.updated" : "mindfula11y.structure.analyzed";
     await this.announcer.announce(lll(key, moderate, minor), signal);
   }
@@ -369,10 +339,10 @@ let Structure = class extends LitElement {
 Structure.styles = [
   ...baseStyles,
   noticeStyles,
+  disclosureStyles,
   tabsStyles,
   findingsStyles,
   buttonStyles,
-  placeholderStyles,
   viewportStyles,
   componentStyles
 ];
@@ -382,9 +352,6 @@ __decorateClass([
 __decorateClass([
   property({ type: Number, attribute: "language-id" })
 ], Structure.prototype, "languageId", 2);
-__decorateClass([
-  property({ type: Number, attribute: "heading-level" })
-], Structure.prototype, "headingLevel", 2);
 __decorateClass([
   property({ type: Boolean, attribute: "has-heading-structure-access" })
 ], Structure.prototype, "hasHeadingStructureAccess", 2);
@@ -397,9 +364,6 @@ __decorateClass([
 __decorateClass([
   state()
 ], Structure.prototype, "analysis", 2);
-__decorateClass([
-  state()
-], Structure.prototype, "expanded", 2);
 Structure = __decorateClass([
   customElement("mindfula11y-structure")
 ], Structure);

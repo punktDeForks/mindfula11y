@@ -8,7 +8,9 @@
   <f:layout name="Module" />
 
   <f:section name="Content">
-    <f:alias map="{headingLevel: 1}">
+    <!-- The module is the structure widget's own page: nothing sits below it
+         that a collapsed tree would keep above the fold. -->
+    <f:alias map="{headingLevel: 1, collapsibleStructure: 0}">
       <f:render partial="Backend/Overview" arguments="{_all}" />
     </f:alias>
   </f:section>

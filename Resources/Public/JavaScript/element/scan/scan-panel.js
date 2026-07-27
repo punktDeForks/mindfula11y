@@ -2,7 +2,7 @@ import { lll } from "@typo3/core/lit-helper.js";
 import { html, nothing } from "lit";
 import "@typo3/backend/element/icon-element.js";
 import "@typo3/backend/element/spinner-element.js";
-import { renderLoadingPlaceholder, renderNoticeBody } from "../../lib/status-render.js";
+import { renderLoadingPlaceholder, renderNoticeBody, renderProgressNotice } from "../../lib/status-render.js";
 import { withQueryParams } from "../../lib/url.js";
 import { scanStatusView } from "../../service/scan/status-view.js";
 import { AiAuditStatus, ScanStatus } from "../../service/scan/types.js";
@@ -14,12 +14,6 @@ function urlListCovered(urlList, targets) {
 }
 function buildReportUrl(reportBaseUrl, scanId, format) {
   return withQueryParams(reportBaseUrl, { scanId, format });
-}
-function renderProgressNotice(title, progressText) {
-  return html`<mindfula11y-notice state="info">
-        <typo3-backend-spinner slot="icon" size="small"></typo3-backend-spinner>
-        <span>${title}${progressText !== null ? html` — ${progressText}` : nothing}</span>
-    </mindfula11y-notice>`;
 }
 function progressDetail(result, isCrawl) {
   if (result.status === ScanStatus.Running) {
@@ -48,8 +42,8 @@ function renderStatus(result, isCrawl) {
             ${renderNoticeBody({ title: lll(view.labelKey), description: lll(`${view.labelKey}.description`) })}
         </mindfula11y-notice>`;
   }
-  return html`<mindfula11y-notice state=${view.state}>
-        <span>${lll(view.labelKey, ...view.labelArgs ?? [])}</span>
+  return html`<mindfula11y-notice state=${view.state} count=${view.count ?? nothing}>
+        <span>${lll(view.labelKey)}</span>
     </mindfula11y-notice>`;
 }
 function renderUpdatedAt(result) {

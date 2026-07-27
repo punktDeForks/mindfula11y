@@ -13,11 +13,18 @@ import { html, LitElement, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import "@typo3/backend/element/icon-element.js";
 import { scrollIntoViewCentered } from "../../lib/dom.js";
-import { IMPACT_ORDER, impactState, renderNoticeBody } from "../../lib/status-render.js";
+import {
+  IMPACT_ORDER,
+  impactState,
+  renderDisclosureMarker,
+  renderFindingPill,
+  renderNoticeBody
+} from "../../lib/status-render.js";
 import { safeHttpUrl } from "../../lib/url.js";
 import { AiAuditStatus } from "../../service/scan/types.js";
 import "../notice/notice.js";
 import { baseStyles } from "../../styles/base-styles.js";
+import disclosureStyles from "../../styles/disclosure.css.js";
 import findingsStyles from "../../styles/findings.css.js";
 import noticeStyles from "../../styles/notice.css.js";
 import componentStyles from "./scan-results.css.js";
@@ -64,19 +71,13 @@ let ScanResults = class extends LitElement {
     }
     return html`<ul class="findings">
             ${impacts.map(
-      (impact) => html`<li>
-                    <button
-                        type="button"
-                        class="notice finding"
-                        data-state=${impactState(impact)}
-                        data-variant="pill"
-                        @click=${() => this.focusFirstViolation(impact)}
-                    >
-                        <span>${lll(`mindfula11y.severity.${impact}`)}</span>
-                        <span class="finding-count">${counts.get(impact)}</span>
-                        <span class="sr-only">${lll("mindfula11y.scan.summary.jumpHint")}</span>
-                    </button>
-                </li>`
+      (impact) => renderFindingPill(
+        impact,
+        () => this.focusFirstViolation(impact),
+        html`<span>${lll(`mindfula11y.severity.${impact}`)}</span>
+                    <span class="finding-count">${counts.get(impact)}</span>
+                    <span class="sr-only">${lll("mindfula11y.scan.summary.jumpHint")}</span>`
+      )
     )}
         </ul>`;
   }
@@ -95,7 +96,7 @@ let ScanResults = class extends LitElement {
     return html`<li>
             <details class="violation" data-impact=${violation.impact}>
                 <summary class="disclosure">
-                    <typo3-backend-icon class="marker" identifier="actions-chevron-down" size="small"></typo3-backend-icon>
+                    ${renderDisclosureMarker()}
                     <span class="rule-description">${violation.rule.description}</span>
                     <code class="rule-id">${violation.rule.id}</code>
                     <span class="notice" data-state=${impactState(violation.impact)} data-variant="pill"
@@ -232,7 +233,13 @@ let ScanResults = class extends LitElement {
         </li>`;
   }
 };
-ScanResults.styles = [...baseStyles, noticeStyles, findingsStyles, componentStyles];
+ScanResults.styles = [
+  ...baseStyles,
+  noticeStyles,
+  findingsStyles,
+  disclosureStyles,
+  componentStyles
+];
 __decorateClass([
   property({ attribute: false })
 ], ScanResults.prototype, "result", 2);

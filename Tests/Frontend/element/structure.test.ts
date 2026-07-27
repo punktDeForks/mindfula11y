@@ -10,7 +10,7 @@
 
 // @vitest-environment happy-dom
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { analyzeMock, clientGetMock, clientSetMock } = vi.hoisted(() => ({
     analyzeMock: vi.fn(),
@@ -49,19 +49,52 @@ const makeError = (nodeId: string): StructureError => ({
     viewports: ['desktop'],
 });
 
-describe('Structure', () => {
-    clientGetMock.mockReturnValue(null);
+/** Two moderate heading findings — the fixture the status-row assertions read. */
+const twoHeadingErrors: StructureAnalysis = {
+    headings: { nodes: [], errors: [makeError('heading-1'), makeError('heading-2')] },
+    landmarks: null,
+};
 
-    afterEach(() => {
-        document.body.replaceChildren();
+describe('Structure', () => {
+    beforeEach(() => {
         analyzeMock.mockReset();
         clientGetMock.mockReset();
         clientGetMock.mockReturnValue(null);
         clientSetMock.mockReset();
     });
 
-    // Typed `Promise<Structure>`, not `HTMLElement`: callers need `.renderRoot`,
-    // which only exists on the `Structure` custom-element type.
+    afterEach(() => {
+        document.body.replaceChildren();
+    });
+
+    /**
+     * Mounts the widget with an analysis already in place, skipping the
+     * coordinator. Typed `Promise<Structure>`, not `HTMLElement`: callers need
+     * `.renderRoot`, which only exists on the custom-element type.
+     */
+    const render = async (opts: {
+        analysis: StructureAnalysis;
+        collapsible?: boolean;
+        landmarks?: boolean;
+    }): Promise<Structure> => {
+        const view = document.createElement('mindfula11y-structure');
+        view.hasHeadingStructureAccess = true;
+        view.hasLandmarkStructureAccess = opts.landmarks ?? false;
+        view.collapsible = opts.collapsible ?? false;
+        Reflect.set(view, 'analysis', opts.analysis);
+        document.body.append(view);
+        await view.updateComplete;
+        return view;
+    };
+
+    /**
+     * The widget's status row: the first `<mindfula11y-notice>`, selected
+     * structurally rather than by a styling class. It leads the widget on both
+     * surfaces — as the disclosure's summary in the page module — and the
+     * findings pills below are plain buttons, not notice elements.
+     */
+    const statusRow = (view: Structure): Element | null => view.renderRoot.querySelector('mindfula11y-notice');
+
     const renderFailed = async (error: StructureAnalysisError): Promise<Structure> => {
         analyzeMock.mockRejectedValueOnce(error);
         const view = document.createElement('mindfula11y-structure');
@@ -104,15 +137,7 @@ describe('Structure', () => {
     });
 
     it('labels and emphasizes the occurrence count in the findings overview', async () => {
-        const analysis: StructureAnalysis = {
-            headings: { nodes: [], errors: [makeError('heading-1'), makeError('heading-2')] },
-            landmarks: null,
-        };
-        const view = document.createElement('mindfula11y-structure');
-        view.hasHeadingStructureAccess = true;
-        Reflect.set(view, 'analysis', analysis);
-        document.body.append(view);
-        await view.updateComplete;
+        const view = await render({ analysis: twoHeadingErrors });
 
         const count = view.renderRoot.querySelector('.finding-count');
 
@@ -122,73 +147,56 @@ describe('Structure', () => {
     });
 
     it('summarizes the analysis as a standardized status row', async () => {
-        const analysis: StructureAnalysis = {
-            headings: { nodes: [], errors: [makeError('heading-1'), makeError('heading-2')] },
-            landmarks: null,
-        };
-        const view = document.createElement('mindfula11y-structure');
-        view.hasHeadingStructureAccess = true;
-        Reflect.set(view, 'analysis', analysis);
-        document.body.append(view);
-        await view.updateComplete;
+        const view = await render({ analysis: twoHeadingErrors });
 
-        const row = view.renderRoot.querySelector('mindfula11y-notice.status-row');
+        const row = statusRow(view);
 
-        // Two moderate findings: the row states the total and is tinted by the
-        // worst present impact, not by a flat warning state.
+        // The state icon is aria-hidden and two impacts share one icon, so the
+        // worst severity must reach screen readers as text rather than as tint
+        // alone.
+        expect(row?.querySelector('.sr-only')?.textContent).toContain('mindfula11y.severity.moderate');
+        // Two moderate findings: the row is tinted by the worst present impact,
+        // not by a flat warning state, and hands the total to the notice's
+        // shared count badge instead of spelling it into the label.
         expect(row?.getAttribute('state')).toBe('warning');
-        expect(row?.textContent).toContain('mindfula11y.structure.issuesFound: 2');
-        const badge = row?.querySelector('.notice.count');
-        expect(badge?.textContent).toContain('2');
-        // The disclosure chevron belongs to the collapsible layout only.
-        expect(row?.querySelector('.chevron')).toBeNull();
+        expect(row?.textContent).toContain('mindfula11y.structure.issuesFound');
+        expect(row?.getAttribute('count')).toBe('2');
+        // The disclosure marker belongs to the collapsible layout only.
+        expect(row?.querySelector('.marker')).toBeNull();
     });
 
     it('reports a clean page as a success row', async () => {
-        const analysis: StructureAnalysis = {
-            headings: { nodes: [], errors: [] },
-            landmarks: null,
-        };
-        const view = document.createElement('mindfula11y-structure');
-        view.hasHeadingStructureAccess = true;
-        Reflect.set(view, 'analysis', analysis);
-        document.body.append(view);
-        await view.updateComplete;
+        const view = await render({ analysis: { headings: { nodes: [], errors: [] }, landmarks: null } });
 
-        const row = view.renderRoot.querySelector('mindfula11y-notice.status-row');
+        const row = statusRow(view);
 
         expect(row?.getAttribute('state')).toBe('success');
         expect(row?.textContent).toContain('mindfula11y.structure.noIssues');
-        expect(row?.querySelector('.notice.count')).toBeNull();
+        expect(row?.hasAttribute('count')).toBe(false);
     });
 
-    // Builds a rendered widget with a two-domain analysis, so both the tablist
-    // and the findings pills are present and their placement can be asserted.
-    const renderAnalyzed = async (collapsible: boolean): Promise<Structure> => {
-        const analysis: StructureAnalysis = {
-            headings: { nodes: [], errors: [makeError('heading-1')] },
-            landmarks: { nodes: [], errors: [] },
-        };
-        const view = document.createElement('mindfula11y-structure');
-        view.hasHeadingStructureAccess = true;
-        view.hasLandmarkStructureAccess = true;
-        view.collapsible = collapsible;
-        Reflect.set(view, 'analysis', analysis);
-        document.body.append(view);
-        await view.updateComplete;
-        return view;
-    };
+    // A two-domain analysis, so both the tablist and the findings pills are
+    // present and their placement can be asserted.
+    const renderAnalyzed = (collapsible: boolean): Promise<Structure> =>
+        render({
+            analysis: {
+                headings: { nodes: [], errors: [makeError('heading-1')] },
+                landmarks: { nodes: [], errors: [] },
+            },
+            landmarks: true,
+            collapsible,
+        });
 
-    it('keeps the module layout uncollapsed with the tablist above the row', async () => {
+    it('renders the module layout uncollapsed in the same order as the page module', async () => {
         const view = await renderAnalyzed(false);
 
+        // Same order on both surfaces — status row, tablist, panels — with the
+        // disclosure as the only difference.
         expect(view.renderRoot.querySelector('details')).toBeNull();
-        const tablist = view.renderRoot.querySelector('[role="tablist"]');
-        const row = view.renderRoot.querySelector('mindfula11y-notice.status-row');
-        expect(tablist).not.toBeNull();
-        expect(row).not.toBeNull();
-        // The tablist is rendered by the header, above the body's status row.
-        expect((tablist?.compareDocumentPosition(row as Node) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        const row = statusRow(view) as Element;
+        const tablist = view.renderRoot.querySelector('[role="tablist"]') as Element;
+        expect(row.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(view.renderRoot.querySelectorAll('[role="tabpanel"]').length).toBe(2);
     });
 
     it('collapses the trees behind the status row in the page module', async () => {
@@ -196,72 +204,82 @@ describe('Structure', () => {
 
         const details = view.renderRoot.querySelector('details');
         expect(details?.open).toBe(false);
-        // The status row is the disclosure's summary and carries the chevron.
-        const row = details?.querySelector('summary > mindfula11y-notice.status-row');
+        // The status row is the disclosure's summary and carries the marker.
+        const row = details?.querySelector('summary > mindfula11y-notice');
         expect(row).not.toBeNull();
-        expect(row?.querySelector('.chevron')?.getAttribute('identifier')).toBe('actions-chevron-right');
+        expect(row?.querySelector('.marker')).not.toBeNull();
         // Tablist, findings pills and panels all live inside the disclosure.
         expect(details?.querySelector('[role="tablist"]')).not.toBeNull();
         expect(details?.querySelector('ul.findings')).not.toBeNull();
         expect(details?.querySelectorAll('[role="tabpanel"]').length).toBe(2);
     });
 
-    it('drops the single-domain heading in the page module only', async () => {
-        const analysis: StructureAnalysis = { headings: { nodes: [], errors: [] }, landmarks: null };
-        const build = async (collapsible: boolean): Promise<Structure> => {
-            const view = document.createElement('mindfula11y-structure');
-            view.hasHeadingStructureAccess = true;
-            view.collapsible = collapsible;
-            Reflect.set(view, 'analysis', analysis);
-            document.body.append(view);
-            await view.updateComplete;
-            return view;
+    it('names the single structure view when access leaves only one domain', async () => {
+        // Only heading access: no tablist is rendered, so nothing else would
+        // identify the tree — the status row above speaks for the widget, not
+        // for the domain.
+        const view = await render({ analysis: twoHeadingErrors });
+
+        expect(view.renderRoot.querySelector('[role="tablist"]')).toBeNull();
+        const panel = view.renderRoot.querySelector('.panel');
+        expect(panel?.getAttribute('role')).toBe('region');
+        expect(panel?.getAttribute('aria-label')).toBe('mindfula11y.structure.headings');
+    });
+
+    it("lists only the active tab's findings, inside that tab's panel", async () => {
+        const analysis: StructureAnalysis = {
+            headings: { nodes: [], errors: [makeError('heading-1')] },
+            landmarks: {
+                nodes: [],
+                errors: [
+                    {
+                        key: 'mindfula11y.structure.landmarks.error.missingMain',
+                        severity: 'moderate',
+                        nodeId: null,
+                        viewports: ['desktop'],
+                    },
+                ],
+            },
         };
+        const view = await render({ analysis, landmarks: true });
 
-        // One domain, so the module renders its heading instead of a tablist.
-        const module = await build(false);
-        expect(module.renderRoot.querySelector('.title')?.textContent).toContain('mindfula11y.structure.headings');
-        document.body.replaceChildren();
+        const findingsOf = (tab: string): string[] =>
+            Array.from(view.renderRoot.querySelectorAll(`#panel-${tab} ul.findings button.finding`)).map(
+                (button) => button.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+            );
 
-        // Collapsible mode has no header at all — the status row is the identity.
-        const pageModule = await build(true);
-        expect(pageModule.renderRoot.querySelector('.title')).toBeNull();
-        expect(pageModule.renderRoot.querySelector('mindfula11y-notice.status-row')).not.toBeNull();
-        expect(pageModule.renderRoot.querySelector('details')).not.toBeNull();
+        // Each panel lists its own domain's findings only — a pill is a jump
+        // target into the view below it, so the headings panel must not offer
+        // jumps into the hidden landmarks view.
+        expect(findingsOf('headings')).toHaveLength(1);
+        expect(findingsOf('headings')[0]).toContain('mindfula11y.structure.headings.error.emptyHeadings');
+        expect(findingsOf('landmarks')).toHaveLength(1);
+        expect(findingsOf('landmarks')[0]).toContain('mindfula11y.structure.landmarks.error.missingMain');
     });
 
     it('renders an identical status row in both surfaces for the same analysis', async () => {
-        const analysis: StructureAnalysis = {
-            headings: { nodes: [], errors: [makeError('heading-1'), makeError('heading-2')] },
-            landmarks: null,
-        };
-        const build = async (collapsible: boolean): Promise<Structure> => {
-            const view = document.createElement('mindfula11y-structure');
-            view.hasHeadingStructureAccess = true;
-            view.collapsible = collapsible;
-            Reflect.set(view, 'analysis', analysis);
-            document.body.append(view);
-            await view.updateComplete;
-            return view;
-        };
-
-        const moduleView = await build(false);
-        const moduleRow = moduleView.renderRoot.querySelector('mindfula11y-notice.status-row');
+        const moduleView = await render({ analysis: twoHeadingErrors });
+        const moduleRow = statusRow(moduleView);
+        // One domain, so neither surface renders a tablist and only the page
+        // module wraps the row in a disclosure.
+        expect(moduleView.renderRoot.querySelector('[role="tablist"]')).toBeNull();
+        expect(moduleView.renderRoot.querySelector('details')).toBeNull();
         document.body.replaceChildren();
 
-        const pageView = await build(true);
-        const pageRow = pageView.renderRoot.querySelector('mindfula11y-notice.status-row');
+        const pageView = await render({ analysis: twoHeadingErrors, collapsible: true });
+        const pageRow = statusRow(pageView);
+        expect(pageView.renderRoot.querySelector('[role="tablist"]')).toBeNull();
+        expect(pageView.renderRoot.querySelector('summary > mindfula11y-notice')).not.toBeNull();
 
         expect(pageRow?.getAttribute('state')).toBe(moduleRow?.getAttribute('state'));
-        // The row's leading <span> carries the label; badges are the .notice.count
-        // spans that follow it — compare each independently of the trailing
-        // chevron, which is collapsible-only and not part of this parity claim.
+        // The row's leading <span> carries the label and the count reaches the
+        // notice's shared badge — compare both independently of the trailing
+        // marker, which is collapsible-only and not part of this parity claim.
         expect(pageRow?.querySelector('span')?.textContent?.trim()).toBe(
             moduleRow?.querySelector('span')?.textContent?.trim(),
         );
-        const badgeText = (row: Element | null): (string | undefined)[] =>
-            Array.from(row?.querySelectorAll('.notice.count') ?? []).map((badge) => badge.textContent?.trim());
-        expect(badgeText(pageRow)).toEqual(badgeText(moduleRow));
+        expect(pageRow?.getAttribute('count')).toBe('2');
+        expect(pageRow?.getAttribute('count')).toBe(moduleRow?.getAttribute('count'));
     });
 
     it('shows a compact spinner row while the first analysis runs', async () => {
@@ -274,7 +292,6 @@ describe('Structure', () => {
         await view.updateComplete;
 
         expect(view.renderRoot.querySelector('details')).toBeNull();
-        expect(view.renderRoot.querySelector('.placeholder')).toBeNull();
         const row = view.renderRoot.querySelector('mindfula11y-notice[state="info"]');
         expect(row?.textContent).toContain('mindfula11y.structure.analyzing');
         expect(row?.querySelector('typo3-backend-spinner')).not.toBeNull();
@@ -287,7 +304,6 @@ describe('Structure', () => {
         const details = view.renderRoot.querySelector('details');
         expect(clientGetMock).toHaveBeenCalledWith('mindfula11y-structure-expanded');
         expect(details?.open).toBe(true);
-        expect(details?.querySelector('.chevron')?.getAttribute('identifier')).toBe('actions-chevron-down');
 
         // happy-dom does not implement summary activation; drive the native
         // state change the way the browser would report it.

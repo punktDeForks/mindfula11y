@@ -40,6 +40,8 @@ const makeAnalysis = (headingErrors: StructureError[], landmarkErrors: Structure
 });
 
 const bothEnabled = { headings: true, landmarks: true };
+/** Both domains as the array `severityCounts` takes. */
+const bothDomains = ['headings', 'landmarks'] as const;
 
 describe('enabledDomains', () => {
     it('lists the enabled domains in canonical order, headings first', () => {
@@ -81,7 +83,7 @@ describe('pageErrors', () => {
 
 describe('severityCounts', () => {
     it('counts zero for a missing analysis', () => {
-        expect(severityCounts(null, 'headings')).toEqual({ critical: 0, serious: 0, moderate: 0, minor: 0 });
+        expect(severityCounts(null, ['headings'])).toEqual({ critical: 0, serious: 0, moderate: 0, minor: 0 });
     });
 
     it('buckets a domain into per-impact totals', () => {
@@ -94,22 +96,31 @@ describe('severityCounts', () => {
             null,
         );
 
-        expect(severityCounts(analysis, 'headings')).toEqual({ critical: 0, serious: 0, moderate: 1, minor: 2 });
+        expect(severityCounts(analysis, ['headings'])).toEqual({ critical: 0, serious: 0, moderate: 1, minor: 2 });
+    });
+
+    it('sums every requested domain, as the widget status row needs', () => {
+        const analysis = makeAnalysis(
+            [makeError('a', { severity: 'moderate' })],
+            [makeError('b', { severity: 'moderate' }), makeError('c', { severity: 'minor' })],
+        );
+
+        expect(severityCounts(analysis, bothDomains)).toEqual({ critical: 0, serious: 0, moderate: 2, minor: 1 });
     });
 });
 
 describe('aggregateFindings', () => {
     it('returns no findings without an analysis', () => {
-        expect(aggregateFindings(null, bothEnabled)).toEqual([]);
+        expect(aggregateFindings(null, 'headings')).toEqual([]);
     });
 
     it('counts occurrences of the same error key into one finding', () => {
         const analysis = makeAnalysis([makeError('dup', { nodeId: 'a' }), makeError('dup', { nodeId: 'b' })], null);
 
-        const findings = aggregateFindings(analysis, bothEnabled);
+        const findings = aggregateFindings(analysis, 'headings');
 
         expect(findings).toHaveLength(1);
-        expect(findings[0]).toMatchObject({ key: 'dup', domain: 'headings', count: 2 });
+        expect(findings[0]).toMatchObject({ key: 'dup', count: 2 });
     });
 
     it('merges the viewports of aggregated occurrences in canonical order', () => {
@@ -121,18 +132,18 @@ describe('aggregateFindings', () => {
             null,
         );
 
-        const findings = aggregateFindings(analysis, bothEnabled);
+        const findings = aggregateFindings(analysis, 'headings');
 
         expect(findings[0]?.viewports).toEqual(['mobile', 'desktop']);
     });
 
-    it('never merges the same key across domains into one chip', () => {
+    it('aggregates one domain only, so a key both analyzers use stays two chips', () => {
         const analysis = makeAnalysis([makeError('shared.key')], [makeError('shared.key')]);
 
-        const findings = aggregateFindings(analysis, bothEnabled);
-
-        expect(findings).toHaveLength(2);
-        expect(findings.map((finding) => finding.domain)).toEqual(['headings', 'landmarks']);
+        // Each chip is a jump target into its own panel's view, so the same key
+        // in the other domain must never be folded in here.
+        expect(aggregateFindings(analysis, 'headings')).toHaveLength(1);
+        expect(aggregateFindings(analysis, 'landmarks')).toHaveLength(1);
     });
 
     it('sorts worst impact first and keeps insertion order within one impact', () => {
@@ -145,18 +156,15 @@ describe('aggregateFindings', () => {
             null,
         );
 
-        const findings = aggregateFindings(analysis, bothEnabled);
+        const findings = aggregateFindings(analysis, 'headings');
 
         expect(findings.map((finding) => finding.key)).toEqual(['moderate-1', 'minor-1', 'minor-2']);
     });
 
-    it('ignores errors of a disabled domain', () => {
-        const analysis = makeAnalysis([makeError('heading-error')], [makeError('landmark-error')]);
+    it('returns no findings for a disabled (null) domain slice', () => {
+        const analysis = makeAnalysis([makeError('heading-error')], null);
 
-        const findings = aggregateFindings(analysis, { headings: true, landmarks: false });
-
-        expect(findings).toHaveLength(1);
-        expect(findings[0]?.key).toBe('heading-error');
+        expect(aggregateFindings(analysis, 'landmarks')).toEqual([]);
     });
 
     it('does not mutate the source errors when merging viewports', () => {
@@ -164,7 +172,7 @@ describe('aggregateFindings', () => {
         const second = makeError('dup', { nodeId: 'b', viewports: ['desktop'] });
         const analysis = makeAnalysis([first, second], null);
 
-        aggregateFindings(analysis, bothEnabled);
+        aggregateFindings(analysis, 'headings');
 
         expect(first.viewports).toEqual(['mobile']);
         expect(second.viewports).toEqual(['desktop']);

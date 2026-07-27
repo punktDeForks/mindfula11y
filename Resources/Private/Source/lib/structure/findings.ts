@@ -34,7 +34,6 @@ export interface Finding {
     key: string;
     severity: ImpactSeverity;
     count: number;
-    domain: StructureDomain;
     viewports: StructureViewport[];
 }
 
@@ -64,43 +63,44 @@ export const domainErrors = (analysis: StructureAnalysis | null, domain: Structu
 export const pageErrors = (analysis: StructureAnalysis | null, domain: StructureDomain): StructureError[] =>
     domainErrors(analysis, domain).filter((error) => error.nodeId === null);
 
-/** Per-impact finding totals of one domain, for the tab badges and announcements. */
+/**
+ * Per-impact finding totals over the given domains — one domain for a tab
+ * badge, every enabled one for the widget's status row and announcement.
+ */
 export const severityCounts = (
     analysis: StructureAnalysis | null,
-    domain: StructureDomain,
+    domains: readonly StructureDomain[],
 ): Record<ImpactSeverity, number> => {
     const counts: Record<ImpactSeverity, number> = { critical: 0, serious: 0, moderate: 0, minor: 0 };
-    for (const error of domainErrors(analysis, domain)) {
-        counts[error.severity] += 1;
+    for (const domain of domains) {
+        for (const error of domainErrors(analysis, domain)) {
+            counts[error.severity] += 1;
+        }
     }
     return counts;
 };
 
 /**
- * Groups the enabled domains' errors into findings chips: one chip per
- * domain + error key, counting occurrences and merging viewports, sorted
- * worst impact first (stable within one impact).
+ * Groups one domain's errors into findings chips: one chip per error key,
+ * counting occurrences and merging viewports, sorted worst impact first
+ * (stable within one impact). Per domain rather than across all of them
+ * because a chip is a jump target into the view of its own panel — the same
+ * label key reused by both analyzers therefore never merges into one chip.
  */
-export const aggregateFindings = (analysis: StructureAnalysis | null, enabled: EnabledDomains): Finding[] => {
+export const aggregateFindings = (analysis: StructureAnalysis | null, domain: StructureDomain): Finding[] => {
     const findings = new Map<string, Finding>();
-    for (const domain of enabledDomains(enabled)) {
-        for (const error of domainErrors(analysis, domain)) {
-            // Keyed by domain + error key: the same label key can be reused by
-            // both analyzers, and their findings must never merge into one chip.
-            const findingKey = `${domain} ${error.key}`;
-            const existing = findings.get(findingKey);
-            if (existing === undefined) {
-                findings.set(findingKey, {
-                    key: error.key,
-                    severity: error.severity,
-                    count: 1,
-                    domain,
-                    viewports: [...error.viewports],
-                });
-            } else {
-                existing.count += 1;
-                existing.viewports = mergeViewports(existing.viewports, error.viewports);
-            }
+    for (const error of domainErrors(analysis, domain)) {
+        const existing = findings.get(error.key);
+        if (existing === undefined) {
+            findings.set(error.key, {
+                key: error.key,
+                severity: error.severity,
+                count: 1,
+                viewports: [...error.viewports],
+            });
+        } else {
+            existing.count += 1;
+            existing.viewports = mergeViewports(existing.viewports, error.viewports);
         }
     }
     return Array.from(findings.values()).sort(

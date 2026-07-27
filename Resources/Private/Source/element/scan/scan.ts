@@ -22,7 +22,7 @@ import type { CSSResult, TemplateResult } from 'lit';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { LiveAnnouncer } from '../../lib/live-announcer.js';
-import { IMPACT_ORDER, impactState, renderCountBadge } from '../../lib/status-render.js';
+import { impactState, renderCountBadge, worstSeverity } from '../../lib/status-render.js';
 import { type TabDescriptor, TabsController } from '../../lib/tabs.js';
 import { dispatch } from '../../lib/types.js';
 import { type ErrorView, errorView, RequestError } from '../../service/request-error.js';
@@ -97,16 +97,12 @@ export class Scan extends LitElement {
     override render(): TemplateResult {
         const tabs = this.enabledTabs();
         return html`<div class="scan">
-            ${
-                tabs.length > 1
-                    ? this.tabs.renderTablist({
-                          ariaLabel: lll('mindfula11y.scan'),
-                          tabs: tabs.map((tab) => this.tabDescriptor(tab)),
-                      })
-                    : nothing
-            }
+            ${this.tabs.renderTablist({
+                ariaLabel: lll('mindfula11y.scan'),
+                tabs: tabs.map((tab) => this.tabDescriptor(tab)),
+            })}
             ${this.announcer.render()}
-            ${tabs.map((tab) => this.renderPanel(tab, tabs.length > 1))}
+            ${tabs.map((tab) => this.renderPanel(tab))}
         </div>`;
     }
 
@@ -137,9 +133,13 @@ export class Scan extends LitElement {
     private tabDescriptor(tab: ScanTab): TabDescriptor<ScanTab> {
         return {
             id: tab,
-            label: lll(`mindfula11y.scan.tab.${tab}`),
+            label: this.tabLabel(tab),
             badge: this.renderTabBadge(tab),
         };
+    }
+
+    private tabLabel(tab: ScanTab): string {
+        return lll(`mindfula11y.scan.tab.${tab}`);
     }
 
     private renderTabBadge(tab: ScanTab): TemplateResult | typeof nothing {
@@ -147,7 +147,7 @@ export class Scan extends LitElement {
         if (result === null || result.status !== ScanStatus.Completed || result.totalIssueCount === 0) {
             return nothing;
         }
-        const worst = IMPACT_ORDER.find((impact) => result.violations.some((violation) => violation.impact === impact));
+        const worst = worstSeverity(result.violations, (violation) => violation.impact);
         return renderCountBadge(
             impactState(worst ?? 'minor'),
             result.totalIssueCount,
@@ -158,7 +158,7 @@ export class Scan extends LitElement {
         );
     }
 
-    private renderPanel(tab: ScanTab, withTabs: boolean): TemplateResult {
+    private renderPanel(tab: ScanTab): TemplateResult {
         // Gate on an explicit action or the *first* load — a
         // background poll re-running with a result already in hand must not
         // flicker aria-busy on every tick. Gated on the controller's primary
@@ -166,12 +166,13 @@ export class Scan extends LitElement {
         // crawlResult null forever, and the crawl panel must not re-announce
         // busy on every poll of the scan tab's run.
         const busy = this.actionBusy || (this.controller.state === 'loading' && this.controller.result === null);
-        const content = renderPanelContent(this.panelData(tab), this.panelCallbacks);
         return this.tabs.renderPanel({
             tab,
-            withTablist: withTabs,
             busy,
-            content,
+            content: renderPanelContent(this.panelData(tab), this.panelCallbacks),
+            // Used only in page-only mode, where no tablist exists to name the
+            // panel — an unnamed region would leave the scan view anonymous.
+            label: this.tabLabel(tab),
         });
     }
 

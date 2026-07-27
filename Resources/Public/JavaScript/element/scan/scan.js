@@ -12,7 +12,7 @@ import { lll } from "@typo3/core/lit-helper.js";
 import { html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { LiveAnnouncer } from "../../lib/live-announcer.js";
-import { IMPACT_ORDER, impactState, renderCountBadge } from "../../lib/status-render.js";
+import { impactState, renderCountBadge, worstSeverity } from "../../lib/status-render.js";
 import { TabsController } from "../../lib/tabs.js";
 import { dispatch } from "../../lib/types.js";
 import { errorView, RequestError } from "../../service/request-error.js";
@@ -76,12 +76,12 @@ let Scan = class extends LitElement {
   render() {
     const tabs = this.enabledTabs();
     return html`<div class="scan">
-            ${tabs.length > 1 ? this.tabs.renderTablist({
+            ${this.tabs.renderTablist({
       ariaLabel: lll("mindfula11y.scan"),
       tabs: tabs.map((tab) => this.tabDescriptor(tab))
-    }) : nothing}
+    })}
             ${this.announcer.render()}
-            ${tabs.map((tab) => this.renderPanel(tab, tabs.length > 1))}
+            ${tabs.map((tab) => this.renderPanel(tab))}
         </div>`;
   }
   enabledTabs() {
@@ -105,16 +105,19 @@ let Scan = class extends LitElement {
   tabDescriptor(tab) {
     return {
       id: tab,
-      label: lll(`mindfula11y.scan.tab.${tab}`),
+      label: this.tabLabel(tab),
       badge: this.renderTabBadge(tab)
     };
+  }
+  tabLabel(tab) {
+    return lll(`mindfula11y.scan.tab.${tab}`);
   }
   renderTabBadge(tab) {
     const result = this.tabResult(tab);
     if (result === null || result.status !== ScanStatus.Completed || result.totalIssueCount === 0) {
       return nothing;
     }
-    const worst = IMPACT_ORDER.find((impact) => result.violations.some((violation) => violation.impact === impact));
+    const worst = worstSeverity(result.violations, (violation) => violation.impact);
     return renderCountBadge(
       impactState(worst ?? "minor"),
       result.totalIssueCount,
@@ -124,14 +127,15 @@ let Scan = class extends LitElement {
       )
     );
   }
-  renderPanel(tab, withTabs) {
+  renderPanel(tab) {
     const busy = this.actionBusy || this.controller.state === "loading" && this.controller.result === null;
-    const content = renderPanelContent(this.panelData(tab), this.panelCallbacks);
     return this.tabs.renderPanel({
       tab,
-      withTablist: withTabs,
       busy,
-      content
+      content: renderPanelContent(this.panelData(tab), this.panelCallbacks),
+      // Used only in page-only mode, where no tablist exists to name the
+      // panel — an unnamed region would leave the scan view anonymous.
+      label: this.tabLabel(tab)
     });
   }
   panelData(tab) {

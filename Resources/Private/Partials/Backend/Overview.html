@@ -11,16 +11,25 @@
             </div>
             <div class="callout-body d-flex flex-column gap-3">
                 <f:if condition="{hasMissingAltTextAccess} && {fileReferenceCount} > 0">
-                    <mindfula11y-notice state="warning">
+                    <mindfula11y-notice state="warning" count="{fileReferenceCount}">
                         <span>
                             <f:translate
-                                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.count"
-                                arguments="{0: fileReferenceCount}" />
+                                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.count" />
                         </span>
                         <f:if condition="{missingAltTextUri}">
-                            <a href="{missingAltTextUri}">
+                            <a slot="trailing" href="{missingAltTextUri}">
                                 <f:translate
                                     key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:general.viewDetails" />
+                                <!--
+                                    Both rows of this callout link to "View details"; the section name
+                                    disambiguates them when links are listed out of context. Core's
+                                    Bootstrap class, not the shadow-root .sr-only utility — this markup
+                                    is slotted, so it lives in the backend's light DOM.
+                                -->
+                                <span class="visually-hidden">
+                                    <f:translate
+                                        key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText" />
+                                </span>
                             </a>
                         </f:if>
                     </mindfula11y-notice>
@@ -32,8 +41,7 @@
                     </mindfula11y-scan-issue-count>
                 </f:if>
                 <f:if condition="{previewUrl} && ({hasHeadingStructureAccess} || {hasLandmarkStructureAccess})">
-                    <mindfula11y-structure heading-level="{headingLevel + 1}"
-                        page-id="{pageId}" language-id="{languageId}"
+                    <mindfula11y-structure page-id="{pageId}" language-id="{languageId}"
                         {f:if(condition: collapsibleStructure, then: 'collapsible')}
                         {f:if(condition: hasHeadingStructureAccess, then: 'has-heading-structure-access')}
                         {f:if(condition: hasLandmarkStructureAccess, then: 'has-landmark-structure-access')}>
