@@ -155,6 +155,8 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
 
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/altless-file-reference/altless-file-reference.js');
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/notice/notice.js');
+        // Pre-upgrade guard for the server-rendered custom elements above.
+        $this->pageRenderer->addCssFile('EXT:mindfula11y/Resources/Public/Css/backend.css');
 
         return $context->moduleTemplate->renderResponse('Backend/MissingAltText');
     }

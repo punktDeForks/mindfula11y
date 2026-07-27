@@ -1,0 +1,47 @@
+/*
+ * Mindful A11y extension for TYPO3 integrating accessibility tools into the backend.
+ * Copyright (C) 2026  Mindful Markup, Felix Spittel
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+/*
+ * Hand-maintained light-DOM stylesheet (NOT build output — the build owns
+ * only Resources/Public/JavaScript). Loaded via PageRenderer->addCssFile()
+ * on every surface that server-renders extension custom elements.
+ *
+ * Pre-upgrade guard: `<mindfula11y-notice>` is the one element placed in
+ * Fluid with meaningful light-DOM children (message text, "view details"
+ * links). Before the module evaluates, that content would render as bare
+ * unstyled text and then visibly restyle into the callout on upgrade.
+ * `:not(:defined)` hides it and reserves an approximate callout height
+ * against layout shift. The animation is a JS-failure escape hatch: if the
+ * module never loads, the server-rendered content (links included) becomes
+ * visible after 2s instead of staying lost. Being light DOM, this file sits
+ * outside the shadow-root token architecture — plain values, mirroring the
+ * hardcoded-fallback philosophy of the token bridge.
+ */
+mindfula11y-notice:not(:defined) {
+    display: block;
+    min-block-size: 3.5rem;
+    visibility: hidden;
+    animation: 2s step-end forwards mindfula11y-defined-timeout;
+}
+
+@keyframes mindfula11y-defined-timeout {
+    to {
+        visibility: visible;
+    }
+}

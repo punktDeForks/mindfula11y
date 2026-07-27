@@ -154,6 +154,8 @@ final readonly class OverviewViewStateFactory
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/structure/structure.js');
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/scan-issue-count/scan-issue-count.js');
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/notice/notice.js');
+        // Pre-upgrade guard for the server-rendered custom elements above.
+        $this->pageRenderer->addCssFile('EXT:mindfula11y/Resources/Public/Css/backend.css');
     }
 
     private function buildFeatureUri(Feature $feature, int $pageId, int $languageId): string
