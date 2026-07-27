@@ -32,10 +32,6 @@
     .disclosure {
         cursor: pointer;
         list-style: none;
-
-        &::-webkit-details-marker {
-            display: none;
-        }
     }
 
     [open] > .disclosure .marker {

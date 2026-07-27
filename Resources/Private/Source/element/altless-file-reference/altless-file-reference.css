@@ -86,6 +86,7 @@
     .hint {
         max-inline-size: var(--mindfula11y-line-limit);
         color: var(--mindfula11y-text-subtle);
+        text-wrap: pretty;
     }
 
     .input {
@@ -94,6 +95,9 @@
         padding-block: var(--mindfula11y-control-padding-block);
         padding-inline: var(--mindfula11y-control-padding-inline);
         color: var(--mindfula11y-input-color);
+        /* Progressive enhancement: the field grows with its text where
+           supported; resize stays as the universal fallback. */
+        field-sizing: content;
         resize: block;
         background-color: var(--mindfula11y-input-bg);
         border: 1px solid color-mix(in srgb, var(--mindfula11y-input-border), var(--mindfula11y-text) 25%);

@@ -62,7 +62,7 @@
                     "level": "error",
                     "options": {
                         "available": 2026,
-                        "allowProperties": ["interpolate-size", "resize", "accent-color", "field-sizing"],
+                        "allowProperties": ["resize", "accent-color", "field-sizing"],
                         "allowPropertyValues": { "text-wrap": ["pretty"] }
                     }
                 }

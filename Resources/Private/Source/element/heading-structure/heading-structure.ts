@@ -55,7 +55,6 @@ interface HeadingRowOptions {
     relationId?: string | undefined;
     container?: boolean | undefined;
     demoted?: boolean | undefined;
-    childControl?: boolean | undefined;
     issueId?: string | undefined;
     issueOptions?: StructureIssueOptionsProvider | undefined;
 }
@@ -348,7 +347,6 @@ export class HeadingStructure extends StructureView<HeadingNode> {
                           : 'mindfula11y.structure.headings.unlabeled',
                   );
         const editable = node.record !== null && node.record.editLink !== '';
-        const hasChildControl = this.hasChildLevelControl(node);
         const inRowErrors = this.inRowErrors(node);
 
         const content = html`<div class="heading" id=${this.rowLabelId(node.id)}>
@@ -376,7 +374,7 @@ export class HeadingStructure extends StructureView<HeadingNode> {
                 </span>
             </div>
             ${this.renderChildLevelControl(node, label)}
-            <div class="meta" ?data-child-control=${hasChildControl}>
+            <div class="meta">
                 ${renderViewportBadges(node.viewports)}
                 <span class="actions">
                     ${editable && this.hasRecord(node) ? this.renderEditLink(node, label) : nothing}
@@ -391,7 +389,6 @@ export class HeadingStructure extends StructureView<HeadingNode> {
             relationId: node.relationId,
             container: isContainer,
             demoted: isDemoted,
-            childControl: hasChildControl,
             issueId: `issue-${node.id}`,
             issueOptions: (error: StructureError) => ({ showViewports: !this.hasSameViewports(error, node) }),
         });
@@ -408,7 +405,6 @@ export class HeadingStructure extends StructureView<HeadingNode> {
             data-relation-id=${options.relationId ?? nothing}
             ?data-container=${options.container ?? false}
             ?data-demoted=${options.demoted ?? false}
-            ?data-child-control=${options.childControl ?? false}
             data-issue-state=${worst === undefined ? nothing : impactState(worst)}
         >
             ${options.content ?? nothing}

@@ -121,6 +121,7 @@
         max-block-size: 12rem;
         padding: var(--mindfula11y-space-fixed-2xs);
         overflow: auto;
+        scrollbar-gutter: stable;
         background-color: var(--mindfula11y-surface-high);
         border-radius: var(--mindfula11y-radius);
     }
@@ -134,6 +135,7 @@
     .ai-title {
         font-size: var(--mindfula11y-font-size-display-lg);
         font-weight: 700;
+        text-wrap: balance;
     }
 
     .skill {
@@ -148,6 +150,7 @@
         align-items: baseline;
         font-size: var(--mindfula11y-font-size-sm);
         font-weight: 700;
+        text-wrap: balance;
     }
 
     .skill-count {
@@ -187,12 +190,14 @@
 
     .message {
         max-inline-size: var(--mindfula11y-line-limit);
+        text-wrap: pretty;
     }
 
     /* Suggestions read as advisory, quote-like insets — informational accent. */
     .suggestion {
         max-inline-size: var(--mindfula11y-line-limit);
         padding-inline-start: var(--mindfula11y-space-xs);
+        text-wrap: pretty;
         border-inline-start: 3px solid var(--mindfula11y-state-info-border);
     }
 

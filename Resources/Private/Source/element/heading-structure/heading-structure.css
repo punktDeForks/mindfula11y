@@ -226,7 +226,9 @@
         }
 
         @container (inline-size >= 56rem) {
-            &[data-child-control] {
+            /* Structural presence, not data: the DOM already knows whether the
+               row carries a child-type control — no mirrored attribute. */
+            &:has(> .child-control) {
                 grid-template-columns: minmax(0, 1fr) minmax(14ch, auto) auto;
             }
         }
@@ -405,7 +407,7 @@
             justify-content: end;
         }
 
-        &[data-child-control] {
+        .row:has(> .child-control) & {
             @container (inline-size >= 36rem) {
                 grid-column: 1 / -1;
                 justify-content: start;

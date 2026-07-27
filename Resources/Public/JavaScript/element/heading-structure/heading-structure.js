@@ -264,7 +264,6 @@ let HeadingStructure = class extends StructureView {
       isContainer ? "mindfula11y.structure.headings.container" : "mindfula11y.structure.headings.unlabeled"
     );
     const editable = node.record !== null && node.record.editLink !== "";
-    const hasChildControl = this.hasChildLevelControl(node);
     const inRowErrors = this.inRowErrors(node);
     const content = html`<div class="heading" id=${this.rowLabelId(node.id)}>
                 ${this.renderLevelControl(node, label, editable)}
@@ -283,7 +282,7 @@ let HeadingStructure = class extends StructureView {
                 </span>
             </div>
             ${this.renderChildLevelControl(node, label)}
-            <div class="meta" ?data-child-control=${hasChildControl}>
+            <div class="meta">
                 ${renderViewportBadges(node.viewports)}
                 <span class="actions">
                     ${editable && this.hasRecord(node) ? this.renderEditLink(node, label) : nothing}
@@ -297,7 +296,6 @@ let HeadingStructure = class extends StructureView {
       relationId: node.relationId,
       container: isContainer,
       demoted: isDemoted,
-      childControl: hasChildControl,
       issueId: `issue-${node.id}`,
       issueOptions: (error) => ({ showViewports: !this.hasSameViewports(error, node) })
     });
@@ -311,7 +309,6 @@ let HeadingStructure = class extends StructureView {
             data-relation-id=${options.relationId ?? nothing}
             ?data-container=${options.container ?? false}
             ?data-demoted=${options.demoted ?? false}
-            ?data-child-control=${options.childControl ?? false}
             data-issue-state=${worst === void 0 ? nothing : impactState(worst)}
         >
             ${options.content ?? nothing}
