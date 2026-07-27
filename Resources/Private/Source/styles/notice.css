@@ -41,7 +41,7 @@
         flex-wrap: wrap;
         gap: var(--mindfula11y-space-2xs);
         align-items: center;
-        max-inline-size: 70ch;
+        max-inline-size: var(--mindfula11y-line-limit);
         color: var(--mindfula11y-text);
         background-color: color-mix(in srgb, var(--mindfula11y-notice-bg) 15%, var(--mindfula11y-component-bg));
         border: 1px solid var(--mindfula11y-notice-border);
@@ -110,5 +110,40 @@
 
     .notice-title {
         font-weight: 700;
+    }
+
+    /*
+     * The extension's single issue-count marker (lib/status-render.ts
+     * `renderCountBadge`) — a tighter pill than the generic chip. It lives
+     * with the notice pattern rather than with the tabs, because the badge is
+     * rendered both on tab labels and inside `<mindfula11y-notice>`'s own
+     * shadow root, which adopts this sheet and nothing else.
+     */
+    .count {
+        justify-content: center;
+        min-inline-size: var(--mindfula11y-control-min-size);
+        padding-block: 0;
+        padding-inline: 0.4em;
+        font-size: var(--mindfula11y-font-size-xs);
+        font-weight: 700;
+    }
+
+    /*
+     * A badge on a status row carries the same `data-state` as the row it sits
+     * in, so the shared tint recipe resolves both to the *identical* fill and
+     * the pill loses any surface of its own. Sitting it on the component
+     * surface restores the chip relationship — the same treatment
+     * `.finding-count` (styles/findings.css) uses inside a tinted pill. Tab
+     * badges are not inside a notice and keep the tint.
+     *
+     * What separates the pill is its saturated state border and the hue
+     * change, not a luminance step: core's state backgrounds sit close to the
+     * surface luminance by design (measured in the v14 backend, every fill
+     * choice available in the token system stays under 1.8:1 against the row).
+     * That is fine — the pill is decorative, and the number inside it is text
+     * at 16:1 light / 13:1 dark.
+     */
+    :where(.notice) .count {
+        background-color: var(--mindfula11y-component-bg);
     }
 }

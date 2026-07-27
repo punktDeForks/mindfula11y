@@ -26,7 +26,7 @@
 
 import { lll } from '@typo3/core/lit-helper.js';
 import type { TemplateResult } from 'lit';
-import { html } from 'lit';
+import { html, nothing } from 'lit';
 import type { StructureViewport } from './structure/types.js';
 import type { ImpactSeverity } from './types.js';
 import { IMPACT_ORDER } from './types.js';
@@ -53,10 +53,45 @@ export function impactState(impact: ImpactSeverity): NoticeState {
     return IMPACT_STATES[impact];
 }
 
-/** Compact issue-count pill for tab labels: visible count, full text for AT. */
-export function renderCountBadge(state: NoticeState, count: number, srText: string): TemplateResult {
+/**
+ * The worst impact a counts record actually contains, or `undefined` when it
+ * is all zeros — the single derivation every badge and status row reads its
+ * notice state from. {@link worstSeverity} is the same rule over a list of
+ * items that carry their own severity.
+ */
+export function worstImpact(counts: Record<ImpactSeverity, number>): ImpactSeverity | undefined {
+    return IMPACT_ORDER.find((impact) => counts[impact] > 0);
+}
+
+/** The worst impact present among `items`, or `undefined` when there are none. */
+export function worstSeverity<T>(
+    items: readonly T[],
+    severityOf: (item: T) => ImpactSeverity,
+): ImpactSeverity | undefined {
+    return IMPACT_ORDER.find((impact) => items.some((item) => severityOf(item) === impact));
+}
+
+/** Total finding count across all severities. */
+export function totalCount(counts: Record<ImpactSeverity, number>): number {
+    return IMPACT_ORDER.reduce((sum, impact) => sum + counts[impact], 0);
+}
+
+/**
+ * Compact issue-count pill — the extension's single marker for "how many",
+ * on tab labels and on every status notice.
+ *
+ * Pass `srText` where the bare number would be ambiguous (a tab carrying one
+ * badge per severity): the number is then hidden and the spelled-out text
+ * read instead. Where the surrounding label already names what is counted
+ * ("Page structure — issues found"), omit it and the number reads as-is.
+ */
+export function renderCountBadge(state: NoticeState, count: number, srText?: string): TemplateResult {
     return html`<span class="notice count" data-state=${state} data-variant="pill"
-        ><span aria-hidden="true">${count}</span><span class="sr-only">${srText}</span></span
+        >${
+            srText === undefined
+                ? count
+                : html`<span aria-hidden="true">${count}</span><span class="sr-only">${srText}</span>`
+        }</span
     >`;
 }
 
@@ -84,10 +119,24 @@ export function noticeStateIcon(state: NoticeState): string {
 }
 
 /**
- * Renders a severity's icon + label for inline/pill notices: the icon is
- * aria-hidden by TYPO3 core (Icon::render() hardcodes it), so a
- * screen-reader-only severity prefix carries the severity distinction
- * before the label — this a11y invariant lives here once for every caller.
+ * A label prefixed with its severity for assistive technology: the state
+ * icons are aria-hidden by TYPO3 core (Icon::render() hardcodes it) and two
+ * impacts share one icon, so without this text the severity would be carried
+ * by colour alone. The a11y invariant lives here once for every surface that
+ * states a severity — the inline/pill chips and the widget status rows.
+ */
+export function renderSeverityLabel(
+    severity: ImpactSeverity,
+    labelKey: string,
+    ...labelArguments: Array<string | number>
+): TemplateResult {
+    return html`<span
+        ><span class="sr-only">${lll(severityLabelKey(severity))}: </span>${lll(labelKey, ...labelArguments)}</span
+    >`;
+}
+
+/**
+ * Renders a severity's icon + label for inline/pill notices.
  */
 export function renderSeverityChip(
     severity: ImpactSeverity,
@@ -98,11 +147,32 @@ export function renderSeverityChip(
             identifier=${noticeStateIcon(impactState(severity))}
             size="small"
         ></typo3-backend-icon>
-        <span
-            ><span class="sr-only">${lll(severityLabelKey(severity))}: </span
-            >${lll(labelKey, ...labelArguments)}</span
-        >`;
+        ${renderSeverityLabel(severity, labelKey, ...labelArguments)}`;
 }
+
+/**
+ * One findings-summary pill (styles/findings.css) — the single implementation
+ * of the `.notice finding` markup contract both summary rows render: a pill
+ * that doubles as navigation into the first occurrence below it. Callers
+ * supply only what the pill says; the wrapper, palette and jump behaviour are
+ * the same everywhere.
+ */
+export const renderFindingPill = (
+    severity: ImpactSeverity,
+    onSelect: () => void,
+    content: TemplateResult,
+): TemplateResult =>
+    html`<li>
+        <button
+            type="button"
+            class="notice finding"
+            data-state=${impactState(severity)}
+            data-variant="pill"
+            @click=${onSelect}
+        >
+            ${content}
+        </button>
+    </li>`;
 
 /**
  * Neutral badges naming the viewports a node or finding applies to. The
@@ -127,6 +197,32 @@ export const renderNoticeBody = (view: { title: string; description: string }): 
         <span class="notice-title">${view.title}</span>
         ${view.description}
     </span>`;
+
+/**
+ * The indicator of a native disclosure's `<summary>` — the markup half of the
+ * shared disclosure chrome (styles/disclosure.css), which replaces the UA
+ * marker and flips this icon via the native `open` attribute. Pass `slot`
+ * when the summary's content is a slotting element (the structure widget's
+ * status row puts the marker into `<mindfula11y-notice>`'s trailing slot).
+ */
+export const renderDisclosureMarker = (slot: string | null = null): TemplateResult =>
+    html`<typo3-backend-icon
+        slot=${slot ?? nothing}
+        class="marker"
+        identifier="actions-chevron-down"
+        size="small"
+    ></typo3-backend-icon>`;
+
+/**
+ * In-progress status notice: the shared "spinner in the icon slot" contract
+ * every busy row uses (scan status, structure analysis), with an optional
+ * progress suffix (crawl page counts, AI-audit tasks).
+ */
+export const renderProgressNotice = (title: string, progressText: string | null = null): TemplateResult =>
+    html`<mindfula11y-notice state="info">
+        <typo3-backend-spinner slot="icon" size="small"></typo3-backend-spinner>
+        <span>${title}${progressText !== null ? html` — ${progressText}` : nothing}</span>
+    </mindfula11y-notice>`;
 
 /** Spinner + label placeholder shown while a view's initial load is running (styles/placeholder.css). */
 export const renderLoadingPlaceholder = (label: string): TemplateResult =>

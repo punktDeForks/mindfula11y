@@ -18,11 +18,11 @@
  */
 
 import type { CSSResult, TemplateResult } from 'lit';
-import { html, LitElement } from 'lit';
+import { html, LitElement, nothing } from 'lit';
 import { property } from 'lit/decorators.js';
 import '@typo3/backend/element/icon-element.js';
 import type { NoticeState } from '../../lib/status-render.js';
-import { noticeStateIcon } from '../../lib/status-render.js';
+import { noticeStateIcon, renderCountBadge } from '../../lib/status-render.js';
 import { baseStyles } from '../../styles/base-styles.js';
 import noticeStyles from '../../styles/notice.css.js';
 import componentStyles from './notice.css.js';
@@ -35,11 +35,22 @@ import componentStyles from './notice.css.js';
  * shadow roots alike; content is slotted, so links and buttons keep the
  * caller's styling. The state icon is rendered automatically and can be
  * replaced via the `icon` slot (e.g. with a spinner while loading).
+ *
+ * A `count` renders the extension's shared issue-count badge after the
+ * message — the marker every status surface uses for "how many". It is
+ * rendered here rather than slotted because slotted nodes live in the
+ * caller's tree: from Fluid that is the light DOM, where none of the
+ * extension's styles reach.
+ *
+ * Trailing content (a "View details" link, a disclosure chevron) goes into
+ * the `trailing` slot so it stays after the badge.
  */
 export class Notice extends LitElement {
     static override styles: CSSResult[] = [...baseStyles, noticeStyles, componentStyles];
 
     @property() state: NoticeState = 'info';
+    /** Issue count shown as the badge; without the attribute no badge renders. */
+    @property({ type: Number }) count: number | null = null;
 
     override render(): TemplateResult {
         return html`<div class="notice" data-state=${this.state}>
@@ -47,6 +58,8 @@ export class Notice extends LitElement {
                 <typo3-backend-icon identifier=${noticeStateIcon(this.state)} size="small"></typo3-backend-icon>
             </slot>
             <slot></slot>
+            ${this.count === null ? nothing : renderCountBadge(this.state, this.count)}
+            <slot name="trailing"></slot>
         </div>`;
     }
 }

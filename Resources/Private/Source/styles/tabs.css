@@ -20,7 +20,8 @@
 /*
  * Shared segmented-control tab pattern (structure + scan containers): a
  * `.tabs` track holding `[role="tab"]` buttons, the selected tab reading as
- * the raised segment, with an optional `.notice count` severity badge pill.
+ * the raised segment, with an optional severity badge pill (styled by the
+ * `.count` rule in styles/notice.css — adopt that sheet too).
  * The container query needs an ancestor with `container-type: inline-size`
  * — every adopting component sets it on its wrapper element.
  */
@@ -76,15 +77,5 @@
         [role="tab"] {
             flex: none;
         }
-    }
-
-    /* Numeric severity badge inside a tab — a tighter notice pill. */
-    .count {
-        justify-content: center;
-        min-inline-size: var(--mindfula11y-control-min-size);
-        padding-block: 0;
-        padding-inline: 0.4em;
-        font-size: var(--mindfula11y-font-size-xs);
-        font-weight: 700;
     }
 }

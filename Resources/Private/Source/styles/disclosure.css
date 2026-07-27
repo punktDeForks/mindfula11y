@@ -1,0 +1,44 @@
+/*
+ * Mindful A11y extension for TYPO3 integrating accessibility tools into the backend.
+ * Copyright (C) 2026  Mindful Markup, Felix Spittel
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+/*
+ * Shared native-disclosure chrome for every `<details>`/`<summary>` in the
+ * extension (scan violation cards, the structure widget's page-module row):
+ * the summary carries `.disclosure`, its indicator `.marker`.
+ *
+ * The UA marker is replaced by a `<typo3-backend-icon>` pointing down when
+ * closed and flipping when open — driven by the native `open` attribute, so
+ * no component tracks the state a second time in JS. Adopt this module
+ * before the component stylesheet and add only the component's own layout
+ * (`display`, spacing, sizing) on top.
+ */
+@layer component {
+    .disclosure {
+        cursor: pointer;
+        list-style: none;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+    }
+
+    [open] > .disclosure .marker {
+        rotate: 180deg;
+    }
+}
