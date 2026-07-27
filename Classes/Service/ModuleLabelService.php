@@ -204,6 +204,7 @@ final readonly class ModuleLabelService
         'scan.opensNewTab',
         'scan.announce.started',
         'scan.announce.completed',
+        'scan.announce.issuesFound',
         'scan.announce.canceled',
         'scan.announce.failed',
         'scan.aiAudit.toggle',

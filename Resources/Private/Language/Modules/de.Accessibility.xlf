@@ -77,8 +77,8 @@
                 <target>Seitenstruktur aktualisiert. Mittlere Probleme: %d; geringe Probleme: %d.</target>
             </trans-unit>
             <trans-unit id="structure.issuesFound" resname="structure.issuesFound">
-                <source>Page structure — issues found: %d</source>
-                <target>Seitenstruktur — gefundene Probleme: %d</target>
+                <source>Page structure — issues found</source>
+                <target>Seitenstruktur — gefundene Probleme</target>
             </trans-unit>
             <trans-unit id="structure.noIssues" resname="structure.noIssues">
                 <source>Page structure — no issues found</source>
@@ -400,8 +400,8 @@
                 <target>Keine Dateiverweise ohne Alternativtext gefunden.</target>
             </trans-unit>
             <trans-unit id="altText.count" resname="altText.count">
-                <source>File references without alternative text: %1$d</source>
-                <target>Dateiverweise ohne Alternativtext: %1$d</target>
+                <source>File references without alternative text</source>
+                <target>Dateiverweise ohne Alternativtext</target>
             </trans-unit>
             <trans-unit id="altText.noAccess" resname="altText.noAccess">
                 <source>No access to missing alternative text feature.</source>
@@ -510,20 +510,16 @@
 				<target>Legt die Überschriftenebene für alle Inhaltselemente innerhalb dieses Elements fest. Automatisch verwendet die nächste Ebene.</target>
             </trans-unit>
             <trans-unit id="structure.headings.relation.descendant" resname="structure.headings.relation.descendant">
-                <source>Inherited from ancestor — change there</source>
-                <target>Von übergeordneter Überschrift geerbt – dort ändern</target>
-            </trans-unit>
-            <trans-unit id="structure.headings.relation.readonly" resname="structure.headings.relation.readonly">
-                <source>This heading level is inherited and cannot be changed here.</source>
-                <target>Diese Überschriftenebene ist geerbt und kann hier nicht geändert werden.</target>
+                <source>This heading level is inherited from an ancestor element and cannot be changed here.</source>
+                <target>Diese Überschriftenebene wird von einem übergeordneten Element geerbt und kann hier nicht geändert werden.</target>
             </trans-unit>
             <trans-unit id="structure.headings.relation.jump" resname="structure.headings.relation.jump">
                 <source>Jump to the related heading to change the level.</source>
                 <target>Zur verknüpften Überschrift springen, um die Ebene zu ändern.</target>
             </trans-unit>
             <trans-unit id="structure.headings.relation.sibling" resname="structure.headings.relation.sibling">
-                <source>Inherited from sibling — change there</source>
-                <target>Von gleichrangiger Überschrift geerbt – dort ändern</target>
+                <source>This heading level is inherited from a sibling element and cannot be changed here.</source>
+                <target>Diese Überschriftenebene wird von einem gleichrangigen Element geerbt und kann hier nicht geändert werden.</target>
             </trans-unit>
             <trans-unit id="structure.headings.relation.notFound" resname="structure.headings.relation.notFound">
                 <source>Related heading not found</source>
@@ -961,6 +957,10 @@
                 <source>Scan completed. Issues found: %d.</source>
                 <target>Scan abgeschlossen. Gefundene Probleme: %d.</target>
             </trans-unit>
+            <trans-unit id="scan.announce.issuesFound" resname="scan.announce.issuesFound">
+                <source>Last external scan: %d accessibility issues found</source>
+                <target>Letzter externer Scan: %d gefundene Barrierefreiheitsprobleme</target>
+            </trans-unit>
             <trans-unit id="scan.announce.canceled" resname="scan.announce.canceled">
                 <source>Scan canceled.</source>
                 <target>Scan abgebrochen.</target>
@@ -1159,8 +1159,8 @@
                 <target>Wird verarbeitet…</target>
             </trans-unit>
             <trans-unit id="scan.issuesFound" resname="scan.issuesFound">
-                <source>Last external scan — accessibility issues found: %d</source>
-                <target>Letzter externer Scan – gefundene Barrierefreiheitsprobleme: %d</target>
+                <source>Last external scan — accessibility issues found</source>
+                <target>Letzter externer Scan – gefundene Barrierefreiheitsprobleme</target>
             </trans-unit>
             <trans-unit id="scan.summary.jumpHint" resname="scan.summary.jumpHint">
                 <source>Jump to the first issue</source>

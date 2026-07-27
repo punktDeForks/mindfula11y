@@ -64,7 +64,7 @@
                 <source>Page structure updated. Moderate issues: %d; minor issues: %d.</source>
             </trans-unit>
             <trans-unit id="structure.issuesFound" resname="structure.issuesFound">
-                <source>Page structure — issues found: %d</source>
+                <source>Page structure — issues found</source>
             </trans-unit>
             <trans-unit id="structure.noIssues" resname="structure.noIssues">
                 <source>Page structure — no issues found</source>
@@ -322,7 +322,7 @@
                 <source>No file references without alternative text found.</source>
             </trans-unit>
             <trans-unit id="altText.count" resname="altText.count">
-                <source>File references without alternative text: %1$d</source>
+                <source>File references without alternative text</source>
             </trans-unit>
             <trans-unit id="altText.noAccess" resname="altText.noAccess">
                 <source>No access to missing alternative text feature.</source>
@@ -418,16 +418,13 @@
                 <source>Sets the heading level for all content elements inside this element. Automatic uses the next level.</source>
             </trans-unit>
             <trans-unit id="structure.headings.relation.descendant" resname="structure.headings.relation.descendant">
-                <source>Inherited from ancestor — change there</source>
-            </trans-unit>
-            <trans-unit id="structure.headings.relation.readonly" resname="structure.headings.relation.readonly">
-                <source>This heading level is inherited and cannot be changed here.</source>
+                <source>This heading level is inherited from an ancestor element and cannot be changed here.</source>
             </trans-unit>
             <trans-unit id="structure.headings.relation.jump" resname="structure.headings.relation.jump">
                 <source>Jump to the related heading to change the level.</source>
             </trans-unit>
             <trans-unit id="structure.headings.relation.sibling" resname="structure.headings.relation.sibling">
-                <source>Inherited from sibling — change there</source>
+                <source>This heading level is inherited from a sibling element and cannot be changed here.</source>
             </trans-unit>
             <trans-unit id="structure.headings.relation.notFound" resname="structure.headings.relation.notFound">
                 <source>Related heading not found</source>
@@ -772,6 +769,9 @@
             <trans-unit id="scan.announce.completed" resname="scan.announce.completed">
                 <source>Scan completed. Issues found: %d.</source>
             </trans-unit>
+            <trans-unit id="scan.announce.issuesFound" resname="scan.announce.issuesFound">
+                <source>Last external scan: %d accessibility issues found</source>
+            </trans-unit>
             <trans-unit id="scan.announce.canceled" resname="scan.announce.canceled">
                 <source>Scan canceled.</source>
             </trans-unit>
@@ -912,7 +912,7 @@
                 <source>Processing…</source>
             </trans-unit>
             <trans-unit id="scan.issuesFound" resname="scan.issuesFound">
-                <source>Last external scan — accessibility issues found: %d</source>
+                <source>Last external scan — accessibility issues found</source>
             </trans-unit>
             <trans-unit id="scan.summary.jumpHint" resname="scan.summary.jumpHint">
                 <source>Jump to the first issue</source>
