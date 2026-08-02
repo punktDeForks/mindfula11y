@@ -104,4 +104,45 @@ final class AltTextGeneratorServiceTest extends TestCase
 
         self::assertNull($service->generate($file));
     }
+
+    /**
+     * getSize() is a file access, not a property read: core throws for a
+     * deleted file and otherwise asks the storage driver whenever the size was
+     * never indexed, which fails on an unreachable remote storage. The service
+     * documents a null return for a failed generation, and the AJAX controller
+     * turns exactly that into the localized error body — an escaping exception
+     * would degrade it to an untyped 500.
+     */
+    #[Test]
+    public function unreadableFileSizeFailsAsNullInsteadOfEscaping(): void
+    {
+        $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+        $extensionConfiguration->method('get')->willReturn([]);
+
+        $requestFactory = $this->createMock(RequestFactory::class);
+        $requestFactory->expects(self::never())->method('request');
+
+        $file = $this->createMock(FileInterface::class);
+        $file->method('getSize')->willThrowException(
+            new \RuntimeException('File has been deleted.', 1329821480),
+        );
+        $file->method('getIdentifier')->willReturn('/gone.png');
+        $file->expects(self::never())->method('getContents');
+
+        // The editor only learns that generation failed, so the operator-facing
+        // trace is the whole diagnosis for an unreachable storage.
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            self::stringContains('could not be read'),
+            self::callback(static fn(array $context): bool => ($context['file'] ?? null) === '/gone.png'),
+        );
+
+        $service = new AltTextGeneratorService(
+            new OpenAIService($extensionConfiguration, $requestFactory, $this->createMock(LoggerInterface::class)),
+            $extensionConfiguration,
+            $logger,
+        );
+
+        self::assertNull($service->generate($file));
+    }
 }

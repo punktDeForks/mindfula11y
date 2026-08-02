@@ -69,19 +69,29 @@ final readonly class AltTextGeneratorService
      */
     public function generate(FileInterface $file, string $languageCode = 'en'): ?string
     {
-        $fileSize = (int)$file->getSize();
-        if ($fileSize > self::MAX_IMAGE_BYTES) {
+        try {
+            // getSize() is a file access, not a property read: it throws for a
+            // deleted file and otherwise asks the storage driver.
+            $fileSize = (int)$file->getSize();
+            if ($fileSize > self::MAX_IMAGE_BYTES) {
+                $this->logger->warning(
+                    'Skipped alternative text generation: image exceeds the {limit} byte limit.',
+                    ['limit' => self::MAX_IMAGE_BYTES, 'size' => $fileSize, 'file' => $file->getIdentifier()]
+                );
+
+                return null;
+            }
+
+            $imageUrl = $this->getBase64ImageUrlFromFile($file);
+        } catch (\Exception $exception) {
+            // The editor is told only that generation failed, so an unreachable
+            // storage or a file deleted since authorization must leave a trace
+            // for the operator — this is the one failure here they can act on.
             $this->logger->warning(
-                'Skipped alternative text generation: image exceeds the {limit} byte limit.',
-                ['limit' => self::MAX_IMAGE_BYTES, 'size' => $fileSize, 'file' => $file->getIdentifier()]
+                'Skipped alternative text generation: image could not be read.',
+                ['file' => $file->getIdentifier(), 'exception' => $exception->getMessage()]
             );
 
-            return null;
-        }
-
-        try {
-            $imageUrl = $this->getBase64ImageUrlFromFile($file);
-        } catch (\Exception) {
             return null;
         }
 
