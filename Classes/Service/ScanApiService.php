@@ -211,6 +211,33 @@ final readonly class ScanApiService
     }
 
     /**
+     * Log an unexpected API response and surface it to the caller.
+     *
+     * Every path that answers a failed response with an exception goes through
+     * here. The one path that does not throw stands apart deliberately:
+     * getScan() degrades a non-200 to null so the module still renders.
+     *
+     * @param array<string, mixed> $logContext
+     * @param array<int|string, mixed> $requestSecrets Credentials this request carried, redacted from the editor-facing detail.
+     * @throws ScanApiRequestException Always.
+     */
+    private function throwProblem(
+        ResponseInterface $response,
+        string $message,
+        array $logContext,
+        string $level = 'error',
+        array $requestSecrets = [],
+    ): never {
+        $problem = $this->logProblem($response, $message, $logContext, $level);
+
+        throw new ScanApiRequestException(
+            $response->getStatusCode(),
+            $problem['title'],
+            $this->toClientSafeDetail($problem['detail'], $requestSecrets),
+        );
+    }
+
+    /**
      * Decode, log, and return the problem details of a failed response.
      *
      * @param array<string, mixed> $logContext
@@ -331,13 +358,13 @@ final readonly class ScanApiService
         }
 
         if ($response->getStatusCode() !== 201) {
-            $problem = $this->logProblem($response, 'Failed to create scan', []);
             // This request carried the site's Basic Auth credentials, so they
             // join the redaction set for the message the editor receives.
-            throw new ScanApiRequestException(
-                $response->getStatusCode(),
-                $problem['title'],
-                $this->toClientSafeDetail($problem['detail'], (array)($scanOptions['basicAuth'] ?? [])),
+            $this->throwProblem(
+                $response,
+                'Failed to create scan',
+                [],
+                requestSecrets: (array)($scanOptions['basicAuth'] ?? []),
             );
         }
 
@@ -365,12 +392,7 @@ final readonly class ScanApiService
         }
 
         if ($response->getStatusCode() !== 200) {
-            $problem = $this->logProblem($response, 'Failed to cancel scan', ['scanId' => $scanId], 'warning');
-            throw new ScanApiRequestException(
-                $response->getStatusCode(),
-                $problem['title'],
-                $this->toClientSafeDetail($problem['detail']),
-            );
+            $this->throwProblem($response, 'Failed to cancel scan', ['scanId' => $scanId], 'warning');
         }
 
         return $this->decodeJsonBody($response, ['scanId' => $scanId]);
@@ -437,11 +459,7 @@ final readonly class ScanApiService
         // Thrown (not null) so the controller can answer 404 instead of the
         // generic 500 for failures — the client recovers by re-creating.
         if ($response->getStatusCode() === 404) {
-            $this->logger->info('Scan not found, will trigger new scan', [
-                'scanId' => $scanId,
-            ]);
-            $problem = $this->parseProblemDetails($response);
-            throw new ScanApiRequestException(404, $problem['title'], $this->toClientSafeDetail($problem['detail']));
+            $this->throwProblem($response, 'Scan not found, will trigger new scan', ['scanId' => $scanId], 'info');
         }
 
         if ($response->getStatusCode() !== 200) {

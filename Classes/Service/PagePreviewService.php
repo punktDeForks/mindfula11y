@@ -208,6 +208,8 @@ final readonly class PagePreviewService
     {
         try {
             $site = $this->siteFinder->getSiteByPageId($pageId);
+            // Throws when the site does not define this language; the catch
+            // below turns that into "no preview". Return value unused by design.
             $site->getLanguageById($languageId);
             $previewPage = $this->getPreviewPageRecord($page, $pageId, $languageId);
             if (!is_array($previewPage)) {

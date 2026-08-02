@@ -40,7 +40,7 @@ class ScanApiRequestException extends \RuntimeException
      */
     public function __construct(
         protected readonly int $statusCode,
-        protected readonly string $problemTitle = '',
+        string $problemTitle = '',
         protected readonly string $problemDetail = '',
     ) {
         parent::__construct(
@@ -56,14 +56,6 @@ class ScanApiRequestException extends \RuntimeException
     public function getStatusCode(): int
     {
         return $this->statusCode;
-    }
-
-    /**
-     * Get the problem+json title.
-     */
-    public function getProblemTitle(): string
-    {
-        return $this->problemTitle;
     }
 
     /**
