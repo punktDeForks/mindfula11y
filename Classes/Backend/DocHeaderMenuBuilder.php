@@ -22,26 +22,80 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Backend;
 
+use MindfulMarkup\MindfulA11y\Service\ModuleLabelService;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Template\Components\ButtonBar;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDown\DropDownRadio;
 use TYPO3\CMS\Backend\Template\Components\Buttons\DropDownButton;
 use TYPO3\CMS\Backend\Template\ModuleTemplate;
 use TYPO3\CMS\Core\Information\Typo3Version;
+use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
  * Builds and places the accessibility module's doc-header selector menus.
  *
- * Owns only the version-dependent DropDownButton mechanics; the menu *items*
- * (features, languages, tables, page levels) are assembled by the controller
- * and the feature renderers, which know their context.
+ * Owns the version-dependent DropDownButton mechanics plus the page-depth
+ * selector, which both features offer identically; the feature-specific menu
+ * *items* (features, languages, tables) are assembled by the controller and the
+ * feature renderers, which know their context.
  */
 final readonly class DocHeaderMenuBuilder
 {
+    /**
+     * Page-depth choices the menus offer; other values are rejected. Shared so
+     * that offering another depth cannot reach one feature's menu while the
+     * other still rejects the value.
+     */
+    private const PAGE_LEVELS_OPTIONS = [0, 1, 5, 10, 99];
+
+    private const MODULE_LANGUAGE_FILE = ModuleLabelService::LANGUAGE_FILE;
+
     public function __construct(
         private UriBuilder $backendUriBuilder,
     ) {}
+
+    /**
+     * Clamp a page-depth read from module data, which is GET-writable, to the
+     * values the menu offers; anything else falls back to the current page only.
+     */
+    public function sanitizePageLevels(mixed $value): int
+    {
+        $pageLevels = (int)$value;
+
+        return in_array($pageLevels, self::PAGE_LEVELS_OPTIONS, true) ? $pageLevels : 0;
+    }
+
+    /**
+     * Build the page-depth selector.
+     *
+     * @param string $parameterName Module-data key the feature persists the depth under.
+     * @param array<string, mixed> $preservedParams Other menu state to carry over the jump.
+     */
+    public function buildPageLevelsDropDown(
+        ModuleContext $context,
+        string $parameterName,
+        int $currentPageLevels,
+        array $preservedParams = [],
+    ): ?DropDownButton {
+        $languageService = $this->getLanguageService();
+        $items = [];
+        foreach (self::PAGE_LEVELS_OPTIONS as $pageLevels) {
+            $items[] = [
+                'title' => $languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.pageLevels.' . $pageLevels),
+                'href' => $this->buildMenuItemUri($context, [
+                    ...$preservedParams,
+                    $parameterName => $pageLevels,
+                ]),
+                'active' => $pageLevels === $currentPageLevels,
+            ];
+        }
+
+        return $this->buildDropDown(
+            $languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.pageLevels'),
+            $items
+        );
+    }
 
     /**
      * Build a doc header dropdown button from a list of single-select items.
@@ -162,5 +216,10 @@ final readonly class DocHeaderMenuBuilder
     private function isTypo3VersionAtLeast(string $version): bool
     {
         return version_compare((new Typo3Version())->getVersion(), $version, '>=');
+    }
+
+    private function getLanguageService(): LanguageService
+    {
+        return $GLOBALS['LANG'];
     }
 }

@@ -32,7 +32,6 @@ use MindfulMarkup\MindfulA11y\Service\ScanStateService;
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
-use TYPO3\CMS\Backend\Template\Components\Buttons\DropDownButton;
 use TYPO3\CMS\Core\Messaging\FlashMessageService;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
@@ -44,9 +43,6 @@ use TYPO3\CMS\Core\Type\ContextualFeedbackSeverity;
 final readonly class ScanFeatureRenderer implements FeatureRendererInterface
 {
     use ModuleNoticeTrait;
-
-    /** Page-levels choices offered by the scan menu; other values are rejected. */
-    private const PAGE_LEVELS_OPTIONS = [0, 1, 5, 10, 99];
 
     public function __construct(
         private ModuleSettingsService $moduleSettingsService,
@@ -91,13 +87,14 @@ final readonly class ScanFeatureRenderer implements FeatureRendererInterface
             return $this->noticeResponse($context->moduleTemplate, 'scan.previewNotEnabled', ContextualFeedbackSeverity::INFO);
         }
 
-        $pageLevels = (int)$context->moduleData->get('scanPageLevels', 0);
         // Guard against arbitrary values set via URL manipulation; only accept the menu's values
-        if (!in_array($pageLevels, self::PAGE_LEVELS_OPTIONS, true)) {
-            $pageLevels = 0;
-        }
+        $pageLevels = $this->menuBuilder->sanitizePageLevels($context->moduleData->get('scanPageLevels', 0));
 
-        $this->menuBuilder->addDropDown($context->moduleTemplate, $this->buildPageLevelsMenu($context, $pageLevels), 3);
+        $this->menuBuilder->addDropDown(
+            $context->moduleTemplate,
+            $this->menuBuilder->buildPageLevelsDropDown($context, 'scanPageLevels', $pageLevels),
+            3
+        );
 
         $canTriggerScan = $this->scanDemandFactory->canTriggerScan($finalPageInfo);
 
@@ -165,25 +162,5 @@ final readonly class ScanFeatureRenderer implements FeatureRendererInterface
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/scan/scan.js');
 
         return $context->moduleTemplate->renderResponse('Backend/Scan');
-    }
-
-    private function buildPageLevelsMenu(ModuleContext $context, int $currentPageLevels): ?DropDownButton
-    {
-        $languageService = $this->getLanguageService();
-        $items = [];
-        foreach (self::PAGE_LEVELS_OPTIONS as $pageLevels) {
-            $items[] = [
-                'title' => $languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.pageLevels.' . $pageLevels),
-                'href' => $this->menuBuilder->buildMenuItemUri($context, [
-                    'scanPageLevels' => $pageLevels,
-                ]),
-                'active' => $pageLevels === $currentPageLevels,
-            ];
-        }
-
-        return $this->menuBuilder->buildDropDown(
-            $languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.pageLevels'),
-            $items
-        );
     }
 }

@@ -47,9 +47,6 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
 
     private const ITEMS_PER_PAGE = 100;
 
-    /** Page-levels choices offered by the menu; other values are rejected. */
-    private const PAGE_LEVELS_OPTIONS = [0, 1, 5, 10, 99];
-
     public function __construct(
         private ModuleSettingsService $moduleSettingsService,
         private AltTextFinderService $altTextFinderService,
@@ -68,10 +65,7 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
         // Module data is GET-writable: clamp the page (it feeds the query
         // OFFSET) and only accept the page-levels values the menu offers.
         $currentPage = max(1, (int)$context->moduleData->get('currentPage', 1));
-        $pageLevels = (int)$context->moduleData->get('pageLevels', 0);
-        if (!in_array($pageLevels, self::PAGE_LEVELS_OPTIONS, true)) {
-            $pageLevels = 0;
-        }
+        $pageLevels = $this->menuBuilder->sanitizePageLevels($context->moduleData->get('pageLevels', 0));
         $tableName = (string)$context->moduleData->get('tableName', '');
 
         // Ensure tableName is valid. If the table doesn't exist in TCA (e.g. '0' or invalid param),
@@ -88,11 +82,27 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
         $showDecorative = (bool)$context->moduleData->get('showDecorative', false);
         $showAllReferences = (bool)$context->moduleData->get('showAllReferences', false);
 
-        $this->menuBuilder->addDropDown($context->moduleTemplate, $this->buildPageLevelsMenu($context, $tableName, $pageLevels, $filterFileMetaData, $showDecorative, $showAllReferences), 3);
-        $this->menuBuilder->addDropDown($context->moduleTemplate, $this->buildTableMenu($context, $tableName, $pageLevels, $filterFileMetaData, $showDecorative, $showAllReferences), 4);
+        // Every menu link carries the *whole* view state and overrides only the
+        // one value it changes — otherwise following it would silently reset the
+        // editor's other filters. Assembled once so a new filter cannot be
+        // forgotten at one of the links.
+        $menuState = [
+            'tableName' => $tableName,
+            'pageLevels' => $pageLevels,
+            'filterFileMetaData' => $filterFileMetaData,
+            'showDecorative' => $showDecorative,
+            'showAllReferences' => $showAllReferences,
+        ];
+
+        $this->menuBuilder->addDropDown(
+            $context->moduleTemplate,
+            $this->menuBuilder->buildPageLevelsDropDown($context, 'pageLevels', $pageLevels, $menuState),
+            3
+        );
+        $this->menuBuilder->addDropDown($context->moduleTemplate, $this->buildTableMenu($context, $menuState), 4);
 
         $context->moduleTemplate->getDocHeaderComponent()->getButtonBar()->addButton(
-            $this->buildFilterDropDown($context, $tableName, $pageLevels, $filterFileMetaData, $showDecorative, $showAllReferences, $canConsiderFileMetaData),
+            $this->buildFilterDropDown($context, $menuState, $canConsiderFileMetaData),
             ButtonBar::BUTTON_POSITION_RIGHT
         );
 
@@ -148,12 +158,8 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
         $context->moduleTemplate->assignMultiple([
             'moduleData' => array_merge($context->moduleData->toArray(), [
                 'id' => $context->pageId,
-                'pageLevels' => $pageLevels,
-                'tableName' => $tableName,
                 'currentPage' => $currentPage,
-                'filterFileMetaData' => $filterFileMetaData,
-                'showDecorative' => $showDecorative,
-                'showAllReferences' => $showAllReferences,
+                ...$menuState,
             ]),
             'pagination' => $pagination,
             'paginator' => $paginator
@@ -167,14 +173,10 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
         return $context->moduleTemplate->renderResponse('Backend/MissingAltText');
     }
 
-    private function buildTableMenu(
-        ModuleContext $context,
-        string $currentTableName,
-        int $currentPageLevels,
-        bool $filterFileMetaData,
-        bool $showDecorative,
-        bool $showAllReferences,
-    ): ?DropDownButton
+    /**
+     * @param array{tableName: string, pageLevels: int, filterFileMetaData: bool, showDecorative: bool, showAllReferences: bool} $menuState
+     */
+    private function buildTableMenu(ModuleContext $context, array $menuState): ?DropDownButton
     {
         $tables = $this->altTextFinderService->getTablesWithFiles($context->pageTsConfig);
         // Add an empty string as the first menu item (for "all tables" option)
@@ -184,13 +186,10 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
             $items[] = [
                 'title' => $this->getTableTitle($tableName),
                 'href' => $this->menuBuilder->buildMenuItemUri($context, [
+                    ...$menuState,
                     'tableName' => $tableName,
-                    'pageLevels' => $currentPageLevels,
-                    'filterFileMetaData' => $filterFileMetaData,
-                    'showDecorative' => $showDecorative,
-                    'showAllReferences' => $showAllReferences,
                 ]),
-                'active' => $tableName === $currentTableName,
+                'active' => $tableName === $menuState['tableName'],
             ];
         }
 
@@ -200,44 +199,15 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
         );
     }
 
-    private function buildPageLevelsMenu(
-        ModuleContext $context,
-        string $currentTableName,
-        int $currentPageLevels,
-        bool $filterFileMetaData,
-        bool $showDecorative,
-        bool $showAllReferences,
-    ): ?DropDownButton
-    {
-        $languageService = $this->getLanguageService();
-        $items = [];
-        foreach (self::PAGE_LEVELS_OPTIONS as $pageLevels) {
-            $items[] = [
-                'title' => $languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.pageLevels.' . $pageLevels),
-                'href' => $this->menuBuilder->buildMenuItemUri($context, [
-                    'tableName' => $currentTableName,
-                    'pageLevels' => $pageLevels,
-                    'filterFileMetaData' => $filterFileMetaData,
-                    'showDecorative' => $showDecorative,
-                    'showAllReferences' => $showAllReferences,
-                ]),
-                'active' => $pageLevels === $currentPageLevels,
-            ];
-        }
-
-        return $this->menuBuilder->buildDropDown(
-            $languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.pageLevels'),
-            $items
-        );
-    }
-
+    /**
+     * The filter menu: one toggle per boolean filter, each linking to the same
+     * view with only its own value flipped.
+     *
+     * @param array{tableName: string, pageLevels: int, filterFileMetaData: bool, showDecorative: bool, showAllReferences: bool} $menuState
+     */
     private function buildFilterDropDown(
         ModuleContext $context,
-        string $currentTableName,
-        int $currentPageLevels,
-        bool $filterFileMetaData,
-        bool $showDecorative,
-        bool $showAllReferences,
+        array $menuState,
         bool $canConsiderFileMetaData,
     ): DropDownButton
     {
@@ -246,52 +216,31 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
             ->setLabel($languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.filter'))
             ->setShowLabelText(true);
 
-        if ($canConsiderFileMetaData) {
-            /** @var DropDownToggle $filterFileMetaDataToggle */
-            $filterFileMetaDataToggle = GeneralUtility::makeInstance(DropDownToggle::class)
-                ->setActive($filterFileMetaData)
-                ->setHref($this->menuBuilder->buildMenuItemUri($context, [
-                    'tableName' => $currentTableName,
-                    'pageLevels' => $currentPageLevels,
-                    'filterFileMetaData' => !$filterFileMetaData,
-                    'showDecorative' => $showDecorative,
-                    'showAllReferences' => $showAllReferences,
-                ]))
-                ->setLabel($languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.filter.fileMetaData'))
-                ->setIcon(null);
-
-            $button->addItem($filterFileMetaDataToggle);
+        $toggles = [
+            'filterFileMetaData' => 'fileMetaData',
+            'showDecorative' => 'decorative',
+            'showAllReferences' => 'allReferences',
+        ];
+        // Metadata alt text can only be filtered on where it may count as
+        // present at all; the other two are always available.
+        if (!$canConsiderFileMetaData) {
+            unset($toggles['filterFileMetaData']);
         }
 
-        /** @var DropDownToggle $showDecorativeToggle */
-        $showDecorativeToggle = GeneralUtility::makeInstance(DropDownToggle::class)
-            ->setActive($showDecorative)
-            ->setHref($this->menuBuilder->buildMenuItemUri($context, [
-                'tableName' => $currentTableName,
-                'pageLevels' => $currentPageLevels,
-                'filterFileMetaData' => $filterFileMetaData,
-                'showDecorative' => !$showDecorative,
-                'showAllReferences' => $showAllReferences,
-            ]))
-            ->setLabel($languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.filter.decorative'))
-            ->setIcon(null);
+        foreach ($toggles as $filter => $labelSuffix) {
+            $isActive = (bool)$menuState[$filter];
+            /** @var DropDownToggle $toggle */
+            $toggle = GeneralUtility::makeInstance(DropDownToggle::class)
+                ->setActive($isActive)
+                ->setHref($this->menuBuilder->buildMenuItemUri($context, [
+                    ...$menuState,
+                    $filter => !$isActive,
+                ]))
+                ->setLabel($languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.filter.' . $labelSuffix))
+                ->setIcon(null);
 
-        $button->addItem($showDecorativeToggle);
-
-        /** @var DropDownToggle $showAllReferencesToggle */
-        $showAllReferencesToggle = GeneralUtility::makeInstance(DropDownToggle::class)
-            ->setActive($showAllReferences)
-            ->setHref($this->menuBuilder->buildMenuItemUri($context, [
-                'tableName' => $currentTableName,
-                'pageLevels' => $currentPageLevels,
-                'filterFileMetaData' => $filterFileMetaData,
-                'showDecorative' => $showDecorative,
-                'showAllReferences' => !$showAllReferences,
-            ]))
-            ->setLabel($languageService->sL(self::MODULE_LANGUAGE_FILE . 'module.menu.filter.allReferences'))
-            ->setIcon(null);
-
-        $button->addItem($showAllReferencesToggle);
+            $button->addItem($toggle);
+        }
 
         return $button;
     }
