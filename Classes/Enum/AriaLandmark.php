@@ -41,11 +41,23 @@ enum AriaLandmark: string
     case FORM = 'form';
 
     /**
+     * The label-key suffix naming this landmark.
+     *
+     * The NONE case is the empty string on the wire but cannot be an empty key
+     * segment, so it is spelled 'none'. Every label family keyed by landmark
+     * goes through here, so that convention has exactly one definition.
+     */
+    public function labelSuffix(): string
+    {
+        return $this->value ?: 'none';
+    }
+
+    /**
      * Get the label key for this landmark type
      */
     public function getLabelKey(): string
     {
-        return 'LLL:EXT:mindfula11y/Resources/Private/Language/Database.xlf:ttContent.columns.mindfula11y.landmark.items.' . ($this->value ?: 'none');
+        return 'LLL:EXT:mindfula11y/Resources/Private/Language/Database.xlf:ttContent.columns.mindfula11y.landmark.items.' . $this->labelSuffix();
     }
 
     /**

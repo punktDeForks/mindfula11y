@@ -26,6 +26,7 @@ namespace MindfulMarkup\MindfulA11y\Form\FieldControl;
 use Exception;
 use MindfulMarkup\MindfulA11y\Service\AltTextDemandFactory;
 use MindfulMarkup\MindfulA11y\Service\DemandSignatureService;
+use MindfulMarkup\MindfulA11y\Service\ModuleLabelService;
 use MindfulMarkup\MindfulA11y\Service\OpenAIService;
 use MindfulMarkup\MindfulA11y\Service\PermissionService;
 use MindfulMarkup\MindfulA11y\Tca\TranslationFields;
@@ -101,22 +102,22 @@ class GenerateAltTextControl extends AbstractNode
         }
 
         $this->pageRenderer->addInlineLanguageLabelArray([
-            'mindfula11y.altText.generate.loading' => $languageService->sL('LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.generate.loading'),
-            'mindfula11y.altText.generate.success' => $languageService->sL('LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.generate.success'),
-            'mindfula11y.altText.generate.success.description' => $languageService->sL('LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.generate.success.description'),
-            'mindfula11y.altText.generate.error.unknown' => $languageService->sL('LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.generate.error.unknown'),
-            'mindfula11y.altText.generate.error.unknown.description' => $languageService->sL('LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.generate.error.unknown.description'),
+            'mindfula11y.altText.generate.loading' => $languageService->sL(ModuleLabelService::LANGUAGE_FILE . 'altText.generate.loading'),
+            'mindfula11y.altText.generate.success' => $languageService->sL(ModuleLabelService::LANGUAGE_FILE . 'altText.generate.success'),
+            'mindfula11y.altText.generate.success.description' => $languageService->sL(ModuleLabelService::LANGUAGE_FILE . 'altText.generate.success.description'),
+            'mindfula11y.altText.generate.error.unknown' => $languageService->sL(ModuleLabelService::LANGUAGE_FILE . 'altText.generate.error.unknown'),
+            'mindfula11y.altText.generate.error.unknown.description' => $languageService->sL(ModuleLabelService::LANGUAGE_FILE . 'altText.generate.error.unknown.description'),
         ]);
 
         $id = StringUtility::getUniqueId('mindfula11y-generate-alt-text-');
 
         return [
             'iconIdentifier' => 'actions-refresh',
-            'title' => 'LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.generate.button',
+            'title' => ModuleLabelService::LANGUAGE_FILE . 'altText.generate.button',
             'linkAttributes' => [
                 'id' => $id,
                 'data-item-name' => $itemName,
-                'aria-label' => $languageService->sL('LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.generate.button'),
+                'aria-label' => $languageService->sL(ModuleLabelService::LANGUAGE_FILE . 'altText.generate.button'),
             ],
             'javaScriptModules' => [
                 JavaScriptModuleInstruction::create(

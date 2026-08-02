@@ -22,14 +22,20 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Service;
 
+use MindfulMarkup\MindfulA11y\Enum\AriaLandmark;
+use MindfulMarkup\MindfulA11y\Enum\HeadingType;
 use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
 
 /**
  * Provides the localized labels the module's JavaScript reads via lll().
  *
  * Every inline label is registered as `mindfula11y.<id>` resolving the label
- * `<id>` from the module language file — keep LABEL_IDS in sync with the keys
- * the frontend components actually consume.
+ * `<id>` from the module language file. LABEL_IDS is deliberately curated
+ * rather than derived from the language file — only the keys the components
+ * actually consume are shipped on every module render. Drift is caught by
+ * Tests/Unit/Service/ModuleLabelCoverageTest, which fails when a literal
+ * lll('mindfula11y.…') key in the sources is not declared here; the key
+ * families that are composed at runtime are derived below instead.
  */
 final readonly class ModuleLabelService
 {
@@ -39,11 +45,6 @@ final readonly class ModuleLabelService
     ) {}
 
     public const LANGUAGE_FILE = 'LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:';
-    private const DATABASE_LANGUAGE_FILE = 'LLL:EXT:mindfula11y/Resources/Private/Language/Database.xlf:';
-
-    // 'div' is not offered to editors by default but remains a renderable type:
-    // a div-demoted row's chip still needs its label.
-    private const HEADING_TYPE_LABEL_IDS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div'];
 
     private const LABEL_IDS = [
         'structureErrors',
@@ -52,6 +53,7 @@ final readonly class ModuleLabelService
         'structure.analyzed',
         'structure.updated',
         'structure.issuesFound',
+        'structure.findingCount',
         'structure.noIssues',
         'structure.retry',
         'structure.error.rendering',
@@ -82,8 +84,6 @@ final readonly class ModuleLabelService
         'structure.headings.error.skippedLevel.inline',
         'structure.headings.error.deepRootHeading',
         'structure.headings.error.deepRootHeading.description',
-        'general.error.loading',
-        'general.error.loading.description',
         'structure.headings.noHeadings',
         'structure.headings.noHeadings.description',
         'structure.headings.unlabeled',
@@ -102,7 +102,6 @@ final readonly class ModuleLabelService
         'structure.headings.error.store',
         'structure.headings.error.store.description',
         'structure.landmarks',
-        'structure.landmarks.nested',
         'structure.landmarks.noLandmarks',
         'structure.landmarks.noLandmarks.description',
         'structure.landmarks.error.missingMain',
@@ -127,15 +126,6 @@ final readonly class ModuleLabelService
         'structure.landmarks.edit',
         'structure.landmarks.edit.locked',
         'structure.landmarks.role',
-        'structure.landmarks.role.none',
-        'structure.landmarks.role.banner',
-        'structure.landmarks.role.main',
-        'structure.landmarks.role.navigation',
-        'structure.landmarks.role.complementary',
-        'structure.landmarks.role.contentinfo',
-        'structure.landmarks.role.region',
-        'structure.landmarks.role.search',
-        'structure.landmarks.role.form',
         'structure.landmarks.error.roleSelect',
         'structure.landmarks.error.store',
         'structure.landmarks.error.store.description',
@@ -172,7 +162,6 @@ final readonly class ModuleLabelService
         'scan.issueContext',
         'scan.start',
         'scan.selector',
-        'scan.context',
         'scan.pageUrl',
         'scan.updatedAt',
         'scan.crawl.start',
@@ -197,6 +186,7 @@ final readonly class ModuleLabelService
         'scan.error.cancelFailed.description',
         'scan.error.createFailed',
         'scan.error.createFailed.description',
+        'scan.error.getFailed',
         'scan.error.getFailed.description',
         'scan.progress.discovering',
         'scan.progress.pages',
@@ -212,7 +202,6 @@ final readonly class ModuleLabelService
         'scan.aiAudit.section',
         'scan.aiAudit.disclaimer.title',
         'scan.aiAudit.disclaimer.description',
-        'scan.aiAudit.status.pending',
         'scan.aiAudit.status.running',
         'scan.aiAudit.tasksFailed',
         'scan.aiAudit.appropriateCount',
@@ -231,9 +220,6 @@ final readonly class ModuleLabelService
         'scan.aiAudit.model',
         'general.viewDetails',
         'general.opensNewTab',
-        'severity.error',
-        'severity.warning',
-        'severity.info',
         'severity.critical',
         'severity.serious',
         'severity.moderate',
@@ -256,9 +242,19 @@ final readonly class ModuleLabelService
         foreach (self::LABEL_IDS as $labelId) {
             $labels['mindfula11y.' . $labelId] = $languageService->sL(self::LANGUAGE_FILE . $labelId);
         }
-        foreach (self::HEADING_TYPE_LABEL_IDS as $type) {
-            $labels['mindfula11y.structure.headings.level.' . $type] = $languageService->sL(
-                self::DATABASE_LANGUAGE_FILE . 'ttContent.columns.mindfula11y.headingType.items.' . $type,
+        // The role chips of the landmark view are composed per landmark, so the
+        // ids are derived from the enum: a new case cannot be forgotten here.
+        foreach (AriaLandmark::cases() as $landmark) {
+            $labelId = 'structure.landmarks.role.' . $landmark->labelSuffix();
+            $labels['mindfula11y.' . $labelId] = $languageService->sL(self::LANGUAGE_FILE . $labelId);
+        }
+        // Heading level chips read the TCA item labels instead, so that the
+        // module names a heading type exactly like the editing form does.
+        // 'div' is not offered to editors by default but remains a renderable
+        // type: a div-demoted row's chip still needs its label.
+        foreach (HeadingType::cases() as $type) {
+            $labels['mindfula11y.structure.headings.level.' . $type->value] = $languageService->sL(
+                $type->getLabelKey(),
             );
         }
 

@@ -86,17 +86,14 @@ ExtensionManagementUtility::addTCAcolumns(
                 'type' => 'select',
                 'renderType' => 'selectSingle',
                 'default' => AriaLandmark::NONE->value,
-                'items' => [
-                    ['label' => AriaLandmark::NONE->getLabelKey(), 'value' => AriaLandmark::NONE->value],
-                    ['label' => AriaLandmark::REGION->getLabelKey(), 'value' => AriaLandmark::REGION->value],
-                    ['label' => AriaLandmark::NAVIGATION->getLabelKey(), 'value' => AriaLandmark::NAVIGATION->value],
-                    ['label' => AriaLandmark::COMPLEMENTARY->getLabelKey(), 'value' => AriaLandmark::COMPLEMENTARY->value],
-                    ['label' => AriaLandmark::MAIN->getLabelKey(), 'value' => AriaLandmark::MAIN->value],
-                    ['label' => AriaLandmark::BANNER->getLabelKey(), 'value' => AriaLandmark::BANNER->value],
-                    ['label' => AriaLandmark::CONTENTINFO->getLabelKey(), 'value' => AriaLandmark::CONTENTINFO->value],
-                    ['label' => AriaLandmark::SEARCH->getLabelKey(), 'value' => AriaLandmark::SEARCH->value],
-                    ['label' => AriaLandmark::FORM->getLabelKey(), 'value' => AriaLandmark::FORM->value],
-                ],
+                // Declaration order is the display order (by expected usage).
+                'items' => array_map(
+                    static fn(AriaLandmark $landmark): array => [
+                        'label' => $landmark->getLabelKey(),
+                        'value' => $landmark->value,
+                    ],
+                    AriaLandmark::cases(),
+                ),
             ],
         ],
         'tx_mindfula11y_arialabelledby' => [

@@ -27,14 +27,15 @@ use MindfulMarkup\MindfulA11y\Domain\Model\AltlessFileReference;
 use MindfulMarkup\MindfulA11y\Domain\Model\GenerateAltTextDemand;
 use MindfulMarkup\MindfulA11y\Domain\Repository\AltlessFileReferenceRepository;
 use MindfulMarkup\MindfulA11y\Hooks\DecorativeFileReferenceDataHandlerGuard;
-use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use MindfulMarkup\MindfulA11y\Service\AltTextDemandFactory;
 use MindfulMarkup\MindfulA11y\Service\DemandSignatureService;
+use MindfulMarkup\MindfulA11y\Service\ModuleLabelService;
+use MindfulMarkup\MindfulA11y\Service\ModuleSettingsService;
 use MindfulMarkup\MindfulA11y\Service\OpenAIService;
 use MindfulMarkup\MindfulA11y\Service\PermissionService;
-use MindfulMarkup\MindfulA11y\Service\ModuleSettingsService;
 use TYPO3\CMS\Backend\Routing\UriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 
@@ -172,7 +173,7 @@ class AltlessFileReferenceViewHelper extends AbstractTagBasedViewHelper
                     ]
                 ],
             ]));
-            $this->tag->addAttribute('record-edit-link-label', sprintf($this->getLanguageService()->sL('LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.editRecord.label'), $recordTableName, $recordUid));
+            $this->tag->addAttribute('record-edit-link-label', sprintf($this->getLanguageService()->sL(ModuleLabelService::LANGUAGE_FILE . 'altText.editRecord.label'), $recordTableName, $recordUid));
             // Mirrors the DataHandler guard's own condition. The toggle itself
             // always needs its grant; the BLANKED_FIELDS grants are only
             // required to turn decorative ON, because only that direction
