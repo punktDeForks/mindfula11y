@@ -56,6 +56,22 @@ final readonly class ModuleSettingsService
     }
 
     /**
+     * The module's own Page TSconfig subtree, so a typo in one of the accessors
+     * below cannot hide next to seven correct ones. Not quite the only spelling
+     * in the extension: AltTextFinderService reads `missingAltText.ignoreColumns`
+     * straight from the array, keeping its legacy-path fallback beside it.
+     *
+     * @param array<string, mixed> $pageTsConfig
+     * @return array<string, mixed>
+     */
+    private function moduleTsConfig(array $pageTsConfig): array
+    {
+        $moduleTsConfig = $pageTsConfig['mod']['mindfula11y_accessibility'] ?? [];
+
+        return is_array($moduleTsConfig) ? $moduleTsConfig : [];
+    }
+
+    /**
      * Check if the user has access to the missing alt text feature.
      *
      * @param array<string, mixed> $pageTsConfig
@@ -63,7 +79,7 @@ final readonly class ModuleSettingsService
     public function hasMissingAltTextAccess(array $pageTsConfig): bool
     {
         return $this->canReadFileReferenceAlternative()
-            && !!($pageTsConfig['mod']['mindfula11y_accessibility']['missingAltText']['enable'] ?? false);
+            && (bool)($this->moduleTsConfig($pageTsConfig)['missingAltText']['enable'] ?? false);
     }
 
     /**
@@ -87,7 +103,7 @@ final readonly class ModuleSettingsService
      */
     public function isFileMetadataIgnored(array $pageTsConfig): bool
     {
-        return !!($pageTsConfig['mod']['mindfula11y_accessibility']['missingAltText']['ignoreFileMetadata'] ?? false);
+        return (bool)($this->moduleTsConfig($pageTsConfig)['missingAltText']['ignoreFileMetadata'] ?? false);
     }
 
     /**
@@ -106,7 +122,7 @@ final readonly class ModuleSettingsService
      */
     public function hasHeadingStructureAccess(array $pageTsConfig): bool
     {
-        return !!($pageTsConfig['mod']['mindfula11y_accessibility']['headingStructure']['enable'] ?? false);
+        return (bool)($this->moduleTsConfig($pageTsConfig)['headingStructure']['enable'] ?? false);
     }
 
     /**
@@ -116,7 +132,23 @@ final readonly class ModuleSettingsService
      */
     public function hasLandmarkStructureAccess(array $pageTsConfig): bool
     {
-        return !!($pageTsConfig['mod']['mindfula11y_accessibility']['landmarkStructure']['enable'] ?? false);
+        return (bool)($this->moduleTsConfig($pageTsConfig)['landmarkStructure']['enable'] ?? false);
+    }
+
+    /**
+     * Check if structure analysis may run on the page at all.
+     *
+     * One pipeline serves both structure views, so its trust boundaries — ticket
+     * issuance, framing, enrichment, redemption — gate on "either view is
+     * enabled". Expressed once so a third view cannot reach one of them while
+     * another still refuses.
+     *
+     * @param array<string, mixed> $pageTsConfig
+     */
+    public function hasStructureAnalysisAccess(array $pageTsConfig): bool
+    {
+        return $this->hasHeadingStructureAccess($pageTsConfig)
+            || $this->hasLandmarkStructureAccess($pageTsConfig);
     }
 
     /**
@@ -127,7 +159,7 @@ final readonly class ModuleSettingsService
     public function hasScanAccess(array $pageTsConfig): bool
     {
         return $this->permissionService->checkTableReadAccess('pages')
-            && !!($pageTsConfig['mod']['mindfula11y_accessibility']['scan']['enable'] ?? false);
+            && (bool)($this->moduleTsConfig($pageTsConfig)['scan']['enable'] ?? false);
     }
 
     /**
@@ -137,7 +169,7 @@ final readonly class ModuleSettingsService
      */
     public function isAutoCreateScanEnabled(array $pageTsConfig): bool
     {
-        return !!($pageTsConfig['mod']['mindfula11y_accessibility']['scan']['autoCreate'] ?? true);
+        return (bool)($this->moduleTsConfig($pageTsConfig)['scan']['autoCreate'] ?? true);
     }
 
     /**
@@ -162,8 +194,8 @@ final readonly class ModuleSettingsService
             return count($siteAuth) === 2 ? $siteAuth : null;
         }
 
-        $username = trim((string)($pageTsConfig['mod']['mindfula11y_accessibility']['scan']['basicAuthUsername'] ?? ''));
-        $password = trim((string)($pageTsConfig['mod']['mindfula11y_accessibility']['scan']['basicAuthPassword'] ?? ''));
+        $username = trim((string)($this->moduleTsConfig($pageTsConfig)['scan']['basicAuthUsername'] ?? ''));
+        $password = trim((string)($this->moduleTsConfig($pageTsConfig)['scan']['basicAuthPassword'] ?? ''));
 
         if ($username === '' || $password === '') {
             return null;
@@ -206,7 +238,7 @@ final readonly class ModuleSettingsService
      */
     public function hasAiAuditAccess(array $pageTsConfig): bool
     {
-        return !!($pageTsConfig['mod']['mindfula11y_accessibility']['scan']['aiAudit']['enable'] ?? false);
+        return (bool)($this->moduleTsConfig($pageTsConfig)['scan']['aiAudit']['enable'] ?? false);
     }
 
     /**
@@ -216,7 +248,7 @@ final readonly class ModuleSettingsService
      */
     public function isAiAuditDefaultEnabled(array $pageTsConfig): bool
     {
-        return !!($pageTsConfig['mod']['mindfula11y_accessibility']['scan']['aiAudit']['default'] ?? false);
+        return (bool)($this->moduleTsConfig($pageTsConfig)['scan']['aiAudit']['default'] ?? false);
     }
 
     /**
@@ -229,7 +261,7 @@ final readonly class ModuleSettingsService
      */
     public function getAiAuditSkills(array $pageTsConfig): ?array
     {
-        $aiAuditConfiguration = $pageTsConfig['mod']['mindfula11y_accessibility']['scan']['aiAudit'] ?? [];
+        $aiAuditConfiguration = $this->moduleTsConfig($pageTsConfig)['scan']['aiAudit'] ?? [];
         if (!is_array($aiAuditConfiguration) || !array_key_exists('skills', $aiAuditConfiguration)) {
             return null;
         }

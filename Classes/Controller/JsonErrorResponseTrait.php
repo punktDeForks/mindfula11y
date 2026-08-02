@@ -23,11 +23,13 @@ declare(strict_types=1);
 namespace MindfulMarkup\MindfulA11y\Controller;
 
 use MindfulMarkup\MindfulA11y\Service\ModuleLabelService;
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Localization\LanguageService;
 
 /**
- * Uniform JSON error bodies for the extension's AJAX endpoints.
+ * The JSON wire format of the extension's AJAX endpoints: uniform localized
+ * error bodies, and decoding the request body they answer.
  *
  * Every error is `{"error": {"title": …, "description": …}}` with both texts
  * localized for the requesting backend user — the shape the frontend's
@@ -36,6 +38,19 @@ use TYPO3\CMS\Core\Localization\LanguageService;
 trait JsonErrorResponseTrait
 {
     private const ERROR_LANGUAGE_FILE = ModuleLabelService::LANGUAGE_FILE;
+
+    /**
+     * Decode a JSON request body, treating anything but a JSON object/array
+     * (invalid JSON, scalars) as an empty body.
+     *
+     * @return array<string, mixed>
+     */
+    private function parseJsonBody(ServerRequestInterface $request): array
+    {
+        $body = json_decode((string)$request->getBody(), true);
+
+        return is_array($body) ? $body : [];
+    }
 
     /**
      * Builds the uniform localized JSON error response.

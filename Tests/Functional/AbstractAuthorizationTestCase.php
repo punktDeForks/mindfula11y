@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Tests\Functional;
 
+use MindfulMarkup\MindfulA11y\Service\ModuleLabelService;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Configuration\SiteWriter;
@@ -202,5 +203,29 @@ abstract class AbstractAuthorizationTestCase extends FunctionalTestCase
         self::assertIsArray($body, 'Response body is not valid JSON');
 
         return $body;
+    }
+
+    /**
+     * Assert a denial: the given status, and the localized title
+     * JsonErrorResponseTrait::errorResponse() would have built for
+     * $expectedLabelKey under the logged-in user's language.
+     *
+     * The expectation is resolved through the same LanguageService mechanism
+     * the controller uses, so it never drifts from a hardcoded English string.
+     * Lives here because it pins the JSON error envelope every AJAX suite
+     * asserts against — one shape, one assertion.
+     */
+    protected function assertErrorResponse(
+        \Psr\Http\Message\ResponseInterface $response,
+        int $expectedStatus,
+        string $expectedLabelKey,
+    ): void {
+        self::assertSame($expectedStatus, $response->getStatusCode(), 'status code for ' . $expectedLabelKey);
+        $body = $this->decodeJsonResponse($response);
+        self::assertSame(
+            $GLOBALS['LANG']->sL(ModuleLabelService::LANGUAGE_FILE . $expectedLabelKey),
+            $body['error']['title'] ?? null,
+            'error title for ' . $expectedLabelKey
+        );
     }
 }

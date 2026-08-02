@@ -53,7 +53,8 @@ use TYPO3\CMS\Core\Versioning\VersionState;
 final readonly class ScanAjaxController
 {
     use JsonErrorResponseTrait;
-    use AjaxGuardTrait;
+    use ModuleAccessGuardTrait;
+    use DemandSessionGuardTrait;
 
     public function __construct(
         private ScanApiService $scanApiService,

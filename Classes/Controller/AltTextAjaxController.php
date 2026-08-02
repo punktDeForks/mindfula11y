@@ -45,7 +45,8 @@ use TYPO3\CMS\Core\Http\JsonResponse;
 final readonly class AltTextAjaxController
 {
     use JsonErrorResponseTrait;
-    use AjaxGuardTrait;
+    use ModuleAccessGuardTrait;
+    use DemandSessionGuardTrait;
 
     public function __construct(
         private AltTextGeneratorService $altTextGeneratorService,

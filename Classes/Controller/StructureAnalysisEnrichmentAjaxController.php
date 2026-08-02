@@ -38,7 +38,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 final readonly class StructureAnalysisEnrichmentAjaxController
 {
     use JsonErrorResponseTrait;
-    use AjaxGuardTrait;
+    use ModuleAccessGuardTrait;
 
     /** Must match MAX_RECORDS_PER_REQUEST in service/structure/api.ts. */
     private const MAX_RECORDS_PER_REQUEST = 200;
@@ -160,8 +160,7 @@ final readonly class StructureAnalysisEnrichmentAjaxController
         $pageUid = $tableName === 'pages' ? $uid : (int)($record['pid'] ?? 0);
         $pageTsConfig = $this->moduleSettingsService->getConvertedPageTsConfig($pageUid);
 
-        return $this->moduleSettingsService->hasHeadingStructureAccess($pageTsConfig)
-            || $this->moduleSettingsService->hasLandmarkStructureAccess($pageTsConfig);
+        return $this->moduleSettingsService->hasStructureAnalysisAccess($pageTsConfig);
     }
 
     /**

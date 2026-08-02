@@ -58,8 +58,7 @@ final readonly class StructureAnalysisFramingService
     public function allowFraming(?UriInterface $previewUri, array $pageTsConfig): void
     {
         if (null === $previewUri
-            || (!$this->moduleSettingsService->hasHeadingStructureAccess($pageTsConfig)
-                && !$this->moduleSettingsService->hasLandmarkStructureAccess($pageTsConfig))
+            || !$this->moduleSettingsService->hasStructureAnalysisAccess($pageTsConfig)
         ) {
             return;
         }

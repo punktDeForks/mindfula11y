@@ -17,12 +17,10 @@ namespace MindfulMarkup\MindfulA11y\Tests\Functional\Controller;
 use MindfulMarkup\MindfulA11y\Controller\ScanAjaxController;
 use MindfulMarkup\MindfulA11y\Domain\Model\CreateScanDemand;
 use MindfulMarkup\MindfulA11y\Service\DemandSignatureService;
-use MindfulMarkup\MindfulA11y\Service\ModuleLabelService;
 use MindfulMarkup\MindfulA11y\Service\PagePreviewService;
 use MindfulMarkup\MindfulA11y\Service\RecordSnapshotService;
 use MindfulMarkup\MindfulA11y\Service\ScanStateService;
 use MindfulMarkup\MindfulA11y\Tests\Functional\AbstractAuthorizationTestCase;
-use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Backend\Routing\PreviewUriBuilder;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 
@@ -133,24 +131,6 @@ final class ScanAjaxControllerTest extends AbstractAuthorizationTestCase
         );
     }
 
-    /**
-     * Assert a uniform JSON error response: status code plus the exact
-     * localized title JsonErrorResponseTrait::errorResponse() would have
-     * built for $expectedLabelKey under the currently logged-in user's
-     * language — the same mechanism the controller itself uses, so this
-     * never drifts from a hardcoded English string.
-     */
-    private function assertErrorResponse(ResponseInterface $response, int $expectedStatus, string $expectedLabelKey): void
-    {
-        self::assertSame($expectedStatus, $response->getStatusCode(), 'status code for ' . $expectedLabelKey);
-        $body = $this->decodeJsonResponse($response);
-        self::assertSame(
-            $GLOBALS['LANG']->sL(ModuleLabelService::LANGUAGE_FILE . $expectedLabelKey),
-            $body['error']['title'] ?? null,
-            'error title for ' . $expectedLabelKey
-        );
-    }
-
     // ---------------------------------------------------------------
     // createAction
     // ---------------------------------------------------------------
@@ -213,7 +193,7 @@ final class ScanAjaxControllerTest extends AbstractAuthorizationTestCase
 
     public function testCreateActionWorkspacePinningDeniesSessionWorkspaceMismatch(): void
     {
-        // Source 1 of error.invalidWorkspace: AjaxGuardTrait::requireDemandSession()
+        // Source 1 of error.invalidWorkspace: DemandSessionGuardTrait::requireDemandSession()
         // compares the session's live workspace (0) against the demand's
         // workspaceId (1) and rejects the mismatch before the live-workspace
         // -only gate is ever reached.

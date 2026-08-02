@@ -37,7 +37,6 @@ use TYPO3\CMS\Core\Http\NormalizedParams;
 final readonly class StructureAnalysisTicketAjaxController
 {
     use JsonErrorResponseTrait;
-    use AjaxGuardTrait;
 
     public function __construct(
         private StructureAnalysisTicketService $ticketService,
@@ -107,8 +106,7 @@ final readonly class StructureAnalysisTicketAjaxController
     private function isStructureAnalysisEnabled(int $pageId): bool
     {
         $pageTsConfig = $this->moduleSettingsService->getConvertedPageTsConfig($pageId);
-        return $this->moduleSettingsService->hasHeadingStructureAccess($pageTsConfig)
-            || $this->moduleSettingsService->hasLandmarkStructureAccess($pageTsConfig);
+        return $this->moduleSettingsService->hasStructureAnalysisAccess($pageTsConfig);
     }
 
     /**

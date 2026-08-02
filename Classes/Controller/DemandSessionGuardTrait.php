@@ -23,48 +23,17 @@ declare(strict_types=1);
 namespace MindfulMarkup\MindfulA11y\Controller;
 
 use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Shared request plumbing for the extension's AJAX controllers: JSON body
- * parsing, the module-access gate, and pinning a signed demand to the current
- * session.
+ * Pinning a signed demand to the current session.
  *
- * Consumers also use JsonErrorResponseTrait. The module gate additionally
- * requires an injected PermissionService ($permissionService), the demand
- * pinning a BackendUserProvider ($backendUserProvider) — controllers that
- * only parse bodies need neither.
+ * Consuming classes must inject both a PermissionService ($permissionService)
+ * and a BackendUserProvider ($backendUserProvider), and also use
+ * JsonErrorResponseTrait for the response shape. Only the demand-redeeming
+ * endpoints need this; see ModuleAccessGuardTrait for the gate they all share.
  */
-trait AjaxGuardTrait
+trait DemandSessionGuardTrait
 {
-    /**
-     * Decode a JSON request body, treating anything but a JSON object/array
-     * (invalid JSON, scalars) as an empty body.
-     *
-     * @return array<string, mixed>
-     */
-    private function parseJsonBody(ServerRequestInterface $request): array
-    {
-        $body = json_decode((string)$request->getBody(), true);
-
-        return is_array($body) ? $body : [];
-    }
-
-    /**
-     * Returns a 403 response if the current backend user lacks module access, null otherwise.
-     *
-     * Module access is the defense-in-depth gate behind the endpoints (the
-     * ticket endpoint enforces it inside
-     * StructureAnalysisAuthorizationService::authorizePage() instead).
-     */
-    private function requireModuleAccess(): ?ResponseInterface
-    {
-        if ($this->permissionService->checkModuleAccess()) {
-            return null;
-        }
-        return $this->errorResponse('error.forbidden', 403);
-    }
-
     /**
      * Verify a signed demand belongs to the current session: same user, same
      * workspace, and access to the demanded language.

@@ -17,7 +17,6 @@ namespace MindfulMarkup\MindfulA11y\Tests\Functional\Controller;
 use MindfulMarkup\MindfulA11y\Controller\AltTextAjaxController;
 use MindfulMarkup\MindfulA11y\Domain\Model\GenerateAltTextDemand;
 use MindfulMarkup\MindfulA11y\Service\DemandSignatureService;
-use MindfulMarkup\MindfulA11y\Service\ModuleLabelService;
 use MindfulMarkup\MindfulA11y\Service\RecordSnapshotService;
 use MindfulMarkup\MindfulA11y\Tests\Functional\AbstractAuthorizationTestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -113,24 +112,6 @@ final class AltTextAjaxControllerTest extends AbstractAuthorizationTestCase
     private function generate(array $payload): ResponseInterface
     {
         return $this->controller()->generateAction($this->createJsonRequest($payload));
-    }
-
-    /**
-     * Assert a uniform JSON error response: status code plus the exact
-     * localized title JsonErrorResponseTrait::errorResponse() would have built
-     * for $expectedLabelKey under the logged-in user's language — resolved via
-     * the same LanguageService mechanism the controller uses, so it never drifts
-     * from a hardcoded English string.
-     */
-    private function assertErrorResponse(ResponseInterface $response, int $expectedStatus, string $expectedLabelKey): void
-    {
-        self::assertSame($expectedStatus, $response->getStatusCode(), 'status code for ' . $expectedLabelKey);
-        $body = $this->decodeJsonResponse($response);
-        self::assertSame(
-            $GLOBALS['LANG']->sL(ModuleLabelService::LANGUAGE_FILE . $expectedLabelKey),
-            $body['error']['title'] ?? null,
-            'error title for ' . $expectedLabelKey
-        );
     }
 
     /**
