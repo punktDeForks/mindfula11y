@@ -15,6 +15,7 @@ namespace MindfulMarkup\MindfulA11y\Domain\Model;
 
 use JsonSerializable;
 use MindfulMarkup\MindfulA11y\Security\SignedScopePolicy;
+use MindfulMarkup\MindfulA11y\Service\RecordSnapshotService;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -83,7 +84,7 @@ final readonly class StructureAnalysisTicket implements JsonSerializable, Signed
             || !is_int($claims['workspaceId'] ?? null)
             || $claims['workspaceId'] < 0
             || !is_string($claims['pageRecordSnapshot'] ?? null)
-            || preg_match('/^[a-f0-9]{64}$/', $claims['pageRecordSnapshot']) !== 1
+            || preg_match(RecordSnapshotService::FINGERPRINT_PATTERN, $claims['pageRecordSnapshot']) !== 1
             || !is_int($claims['backendUserId'] ?? null)
             || $claims['backendUserId'] <= 0
             || !is_string($claims['backendOrigin'] ?? null)

@@ -22,6 +22,8 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Domain\Model;
 
+use MindfulMarkup\MindfulA11y\Service\RecordSnapshotService;
+
 
 /**
  * Immutable, signed authorization scope for AI alternative-text generation.
@@ -125,11 +127,11 @@ final readonly class GenerateAltTextDemand implements SignedDemandInterface
             || $recordColumns === []
             || array_filter($recordColumns, static fn(mixed $column): bool => !is_string($column) || $column === '') !== []
             || !is_string($recordSnapshot)
-            || preg_match('/^[a-f0-9]{64}$/', $recordSnapshot) !== 1
+            || preg_match(RecordSnapshotService::FINGERPRINT_PATTERN, $recordSnapshot) !== 1
             || !is_string($fileSnapshot)
-            || preg_match('/^[a-f0-9]{64}$/', $fileSnapshot) !== 1
+            || preg_match(RecordSnapshotService::FINGERPRINT_PATTERN, $fileSnapshot) !== 1
             || !is_string($fileReferenceSnapshot)
-            || ($fileReferenceSnapshot !== '' && preg_match('/^[a-f0-9]{64}$/', $fileReferenceSnapshot) !== 1)
+            || ($fileReferenceSnapshot !== '' && preg_match(RecordSnapshotService::FINGERPRINT_PATTERN, $fileReferenceSnapshot) !== 1)
         ) {
             return null;
         }

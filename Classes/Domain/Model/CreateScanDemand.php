@@ -22,6 +22,8 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Domain\Model;
 
+use MindfulMarkup\MindfulA11y\Service\RecordSnapshotService;
+
 
 /**
  * Immutable, signed authorization scope for creating an accessibility scan.
@@ -103,7 +105,7 @@ final readonly class CreateScanDemand implements SignedDemandInterface
             || !is_string($previewUrl)
             || $previewUrl === ''
             || !is_string($pageRecordSnapshot)
-            || preg_match('/^[a-f0-9]{64}$/', $pageRecordSnapshot) !== 1
+            || preg_match(RecordSnapshotService::FINGERPRINT_PATTERN, $pageRecordSnapshot) !== 1
         ) {
             return null;
         }

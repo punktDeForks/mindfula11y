@@ -44,7 +44,7 @@ final readonly class StructureAnalysisTicketService
         if ($pageId <= 0
             || $languageId < 0
             || $workspaceId < 0
-            || preg_match('/^[a-f0-9]{64}$/', $pageRecordSnapshot) !== 1
+            || preg_match(RecordSnapshotService::FINGERPRINT_PATTERN, $pageRecordSnapshot) !== 1
             || $backendUserId <= 0
         ) {
             throw new \InvalidArgumentException('Invalid structure analysis authorization scope.', 1760000004);

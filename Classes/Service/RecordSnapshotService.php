@@ -67,6 +67,18 @@ final readonly class RecordSnapshotService
         'endtime',
     ];
 
+    /**
+     * Wire format of a fingerprint produced by fingerprint(): lowercase hex
+     * SHA-256.
+     *
+     * Every trust boundary validates the shape of an incoming fingerprint
+     * before trusting it, and those checks stay separate on purpose (each
+     * boundary fails closed on its own). What they must not do is disagree
+     * about the format: changing the hash here would otherwise leave six
+     * validators rejecting every legitimate demand.
+     */
+    public const FINGERPRINT_PATTERN = '/^[a-f0-9]{64}$/';
+
     public function __construct(
         private ConnectionPool $connectionPool,
     ) {}
