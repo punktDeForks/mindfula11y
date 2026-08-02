@@ -23,9 +23,10 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Upgrades;
 
+use Doctrine\DBAL\Query\Expression\CompositeExpression;
 use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
-use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Install\Attribute\UpgradeWizard;
 use TYPO3\CMS\Install\Updates\DatabaseUpdatedPrerequisite;
@@ -107,18 +108,7 @@ class HeadingTypeStringMigrationWizard implements UpgradeWizardInterface
         $records = $queryBuilder
             ->select('uid', self::OLD_FIELD_NAME)
             ->from(self::TABLE_NAME)
-            ->where(
-                $queryBuilder->expr()->and(
-                    $queryBuilder->expr()->isNotNull(self::OLD_FIELD_NAME),
-                    $queryBuilder->expr()->neq(self::OLD_FIELD_NAME, $queryBuilder->createNamedParameter('')),
-                    // Same condition as updateNecessary(): never overwrite an
-                    // already-migrated (or manually set) value on a re-run.
-                    $queryBuilder->expr()->or(
-                        $queryBuilder->expr()->isNull(self::NEW_FIELD_NAME),
-                        $queryBuilder->expr()->eq(self::NEW_FIELD_NAME, $queryBuilder->createNamedParameter(''))
-                    )
-                )
-            )
+            ->where($this->pendingMigrationConstraint($queryBuilder))
             ->executeQuery();
 
         while ($record = $records->fetchAssociative()) {
@@ -141,27 +131,40 @@ class HeadingTypeStringMigrationWizard implements UpgradeWizardInterface
     }
 
     /**
+     * "Old field set, new field not yet written" — the rows this migration owns.
+     *
+     * updateNecessary() counts them and executeUpdate() migrates them, so the
+     * two must ask exactly the same question: a wizard that reports work to do
+     * but then migrates nothing (or the reverse) never settles.
+     */
+    private function pendingMigrationConstraint(QueryBuilder $queryBuilder): CompositeExpression
+    {
+        return $queryBuilder->expr()->and(
+            $queryBuilder->expr()->isNotNull(self::OLD_FIELD_NAME),
+            $queryBuilder->expr()->neq(self::OLD_FIELD_NAME, $queryBuilder->createNamedParameter('')),
+            // Never overwrite an already-migrated (or manually set) value on a re-run.
+            $queryBuilder->expr()->or(
+                $queryBuilder->expr()->isNull(self::NEW_FIELD_NAME),
+                $queryBuilder->expr()->eq(self::NEW_FIELD_NAME, $queryBuilder->createNamedParameter(''))
+            )
+        );
+    }
+
+    /**
      * Convert old numeric value to new string value.
      */
     private function convertOldValueToNewValue($oldValue): ?string
     {
-        // Handle both integer and string representations of old values
+        // Both integer and string representations of the old numeric values.
         if (is_numeric($oldValue)) {
-            $intValue = (int)$oldValue;
-            return self::VALUE_MAPPING[$intValue] ?? null;
+            return self::VALUE_MAPPING[(int)$oldValue] ?? null;
         }
-        
-        // If it's already a string, check if it's a valid numeric string
-        if (is_string($oldValue) && is_numeric($oldValue)) {
-            $intValue = (int)$oldValue;
-            return self::VALUE_MAPPING[$intValue] ?? null;
-        }
-        
-        // If it's already a valid heading type, keep it
-        if (is_string($oldValue) && in_array($oldValue, self::VALUE_MAPPING, true)) {
+
+        // Already a valid heading type: keep it (VALUE_MAPPING holds only strings).
+        if (in_array($oldValue, self::VALUE_MAPPING, true)) {
             return $oldValue;
         }
-        
+
         return null;
     }
 
@@ -197,17 +200,7 @@ class HeadingTypeStringMigrationWizard implements UpgradeWizardInterface
         $count = $queryBuilder
             ->count('uid')
             ->from(self::TABLE_NAME)
-            ->where(
-                $queryBuilder->expr()->and(
-                    $queryBuilder->expr()->isNotNull(self::OLD_FIELD_NAME),
-                    $queryBuilder->expr()->neq(self::OLD_FIELD_NAME, $queryBuilder->createNamedParameter('')),
-                    // Only migrate if the new field is empty or null (hasn't been migrated yet)
-                    $queryBuilder->expr()->or(
-                        $queryBuilder->expr()->isNull(self::NEW_FIELD_NAME),
-                        $queryBuilder->expr()->eq(self::NEW_FIELD_NAME, $queryBuilder->createNamedParameter(''))
-                    )
-                )
-            )
+            ->where($this->pendingMigrationConstraint($queryBuilder))
             ->executeQuery()
             ->fetchOne();
 
