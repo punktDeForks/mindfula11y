@@ -174,6 +174,24 @@ final class AccessibilityModuleControllerTest extends AbstractAuthorizationTestC
         self::assertSame(302, $response->getStatusCode());
     }
 
+    /**
+     * currentPage is GET-writable: an extreme value saturates the int cast at
+     * PHP_INT_MAX, so the offset multiplication would overflow to a float and
+     * fatal on the int-typed finder parameter. The renderer must clamp to the
+     * actual last page instead.
+     */
+    public function testExtremeCurrentPageIsClampedNotFatal(): void
+    {
+        $this->logInBackendUser(2);
+
+        $response = $this->mainAction($this->buildModuleRequest(10, [
+            'feature' => 'missingAltText',
+            'currentPage' => '99999999999999999999',
+        ]));
+
+        self::assertSame(200, $response->getStatusCode());
+    }
+
     public function testAuthorizedRequestRendersTheModule(): void
     {
         $this->logInBackendUser(2);

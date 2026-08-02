@@ -106,8 +106,6 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
             return $this->noticeResponse($context->moduleTemplate, 'altText.noTableAccess', ContextualFeedbackSeverity::ERROR, 403);
         }
 
-        $offset = ($currentPage - 1) * self::ITEMS_PER_PAGE;
-
         // An empty table selection means "all record types".
         $tableFilter = $tableName !== '' ? $tableName : null;
         $fileReferenceCount = $this->altTextFinderService->countAltlessFileReferences(
@@ -120,6 +118,14 @@ final readonly class MissingAltTextFeatureRenderer implements FeatureRendererInt
             $showDecorative,
             $showAllReferences
         );
+
+        // Clamp to the actual last page before deriving the offset: an
+        // out-of-range page would render an empty slice, and an extreme value
+        // would overflow the offset multiplication to a float and fatal on the
+        // int-typed service parameter.
+        $lastPage = max(1, (int)ceil($fileReferenceCount / self::ITEMS_PER_PAGE));
+        $currentPage = min($currentPage, $lastPage);
+        $offset = ($currentPage - 1) * self::ITEMS_PER_PAGE;
         $fileReferences = $this->altTextFinderService->getAltlessFileReferences(
             $context->pageId,
             $pageLevels,

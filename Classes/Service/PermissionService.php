@@ -26,6 +26,7 @@ namespace MindfulMarkup\MindfulA11y\Service;
 use MindfulMarkup\MindfulA11y\Tca\TranslationFields;
 use TYPO3\CMS\Backend\Module\ModuleProvider;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Schema\Capability\TcaSchemaCapability;
 use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
@@ -93,19 +94,32 @@ final readonly class PermissionService
 
     /**
      * Get allowed values for each authMode column of a table.
-     * 
+     *
      * Return an array of allowed authMode values for each column in the given table.
      * Does not check if the user has access to the table itself.
-     * 
+     *
+     * Mirrors BackendUserAuthentication::checkAuthMode() as an enumerable
+     * value set: the empty value is always allowed, every other value only
+     * with an explicit_allowdeny grant. Since grants can only be issued for
+     * statically declared TCA items, a column whose items are populated at
+     * render time only (itemsProcFunc, foreign_table) yields just [''] —
+     * failing closed instead of being skipped, which would have shown record
+     * types the user was never granted. Admins pass checkAuthMode() for every
+     * value, so no column is listed for them at all.
+     *
      * @param string $tableName The name of the table to check.
      *
-     * @return array<string,array<string>|null> An array of allowed authMode values for each authMode enabled column.
+     * @return array<string,non-empty-list<string>> Allowed authMode values per authMode-enabled column; always at least the blank value.
      */
     public function getAllowedAuthModeValues(string $tableName): array
     {
         $backendUser = $this->backendUserProvider->getAuthenticated();
 
         if ($backendUser === null || !isset($GLOBALS['TCA'][$tableName])) {
+            return [];
+        }
+
+        if ($backendUser->isAdmin()) {
             return [];
         }
 
@@ -117,16 +131,9 @@ final readonly class PermissionService
                     ($columnValue['config']['type'] ?? '') === 'select'
                     && ($columnValue['config']['authMode'] ?? false)
                 ) {
-                    /**
-                     * If none exist no point checking.
-                     */
-                    if (empty($columnValue['config']['items'])) {
-                        continue;
-                    }
-
-                    $allowedAuthModeValues[$columnName] = [];
-                    foreach ($columnValue['config']['items'] as $item) {
-                        if ($backendUser->checkAuthMode($tableName, $columnName, $item['value'])) {
+                    $allowedAuthModeValues[$columnName] = [''];
+                    foreach ($columnValue['config']['items'] ?? [] as $item) {
+                        if ((string)$item['value'] !== '' && $backendUser->checkAuthMode($tableName, $columnName, $item['value'])) {
                             $allowedAuthModeValues[$columnName][] = $item['value'];
                         }
                     }
@@ -369,12 +376,16 @@ final readonly class PermissionService
      * 
      * @param string $tableName The name of the table to check.
      * @param array $columnNames The columns to check.
-     * 
+     * @param BackendUserAuthentication|null $backendUser Judge this user instead of the
+     *        session one. DataHandler::start() may be handed an alternative user object,
+     *        and a hook anticipating its exclude-field filter has to judge that same
+     *        object — see DecorativeFileReferenceDataHandlerGuard.
+     *
      * @return bool True if the columns are non_exclude_fields, false otherwise.
      */
-    public function checkNonExcludeFields(string $tableName, array $columnNames): bool
+    public function checkNonExcludeFields(string $tableName, array $columnNames, ?BackendUserAuthentication $backendUser = null): bool
     {
-        $backendUser = $this->backendUserProvider->getAuthenticated();
+        $backendUser ??= $this->backendUserProvider->getAuthenticated();
 
         if ($backendUser === null) {
             return false;

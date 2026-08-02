@@ -17,6 +17,7 @@ namespace MindfulMarkup\MindfulA11y\Tests\Functional\ViewHelpers;
 use MindfulMarkup\MindfulA11y\Domain\Model\StructureAnalysisTicket;
 use MindfulMarkup\MindfulA11y\Enum\HeadingType;
 use MindfulMarkup\MindfulA11y\Tca\HeadingTypeItemsProcessor;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Http\ServerRequest;
@@ -46,7 +47,7 @@ final class HeadingViewHelperTest extends FunctionalTestCase
         $this->importCSVDataSet(__DIR__ . '/../Fixtures/HeadingViewHelperFixture.csv');
     }
 
-    private function render(string $source, ?ServerRequestInterface $request = null): string
+    private function render(string $source, ?ServerRequestInterface $request = null, array $variables = []): string
     {
         $context = $this->get(RenderingContextFactory::class)->create([], $request);
         $context->getTemplatePaths()->setTemplateSource(
@@ -55,7 +56,10 @@ final class HeadingViewHelperTest extends FunctionalTestCase
             . '</html>'
         );
 
-        return trim((new TemplateView($context))->render());
+        $view = new TemplateView($context);
+        $view->assignMultiple($variables);
+
+        return trim($view->render());
     }
 
     private function structureAnalysisRequest(): ServerRequestInterface
@@ -565,5 +569,78 @@ final class HeadingViewHelperTest extends FunctionalTestCase
         );
 
         self::assertSame('', $output);
+    }
+
+    /**
+     * Hostile values for the heading type, covering both shapes of the risk:
+     * names that would break out of the tag, and names whose content model is
+     * raw text (the browser decodes no entities inside them, so escaping the
+     * children does not neutralize them).
+     *
+     * @return array<string, array{string}>
+     */
+    public static function hostileHeadingTypesProvider(): array
+    {
+        return [
+            'script executes its children' => ['script'],
+            'uppercase must not bypass the check' => ['SCRIPT'],
+            'style injects CSS' => ['style'],
+            'plaintext swallows the rest of the document' => ['plaintext'],
+            'attribute smuggled after the element name' => ['h2 onload=alert(1)'],
+            'element closed early' => ['h2><script>alert(1)</script'],
+            'a plausible but non-existent level' => ['h7'],
+            'a value from a different select' => ['presentation'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('hostileHeadingTypesProvider')]
+    public function hostileTypeArgumentFallsBackToTheDefaultTag(string $type): void
+    {
+        $output = $this->render(
+            '<mindfula11y:heading type="{type}">C</mindfula11y:heading>',
+            null,
+            ['type' => $type],
+        );
+
+        self::assertSame('<h2>C</h2>', $output);
+    }
+
+    #[Test]
+    #[DataProvider('hostileHeadingTypesProvider')]
+    public function hostileStoredHeadingTypeFallsBackToTheDefaultTag(string $type): void
+    {
+        // Written straight into the column because that is reachable in practice:
+        // DataHandler does NOT check a static-items select against its declared
+        // items (see checkValueForGroupFolderSelect — the source itself notes the
+        // missing check), so an editor can store any string here via tce_db, which
+        // is the route the extension's own module save uses. Rendering is
+        // therefore the only layer that sees every write path.
+        $connection = $this->getConnectionPool()->getConnectionForTable('tt_content');
+        $connection->insert('tt_content', [
+            'uid' => 9001,
+            'pid' => 1,
+            'header' => 'probe',
+            'tx_mindfula11y_headingtype' => $type,
+        ]);
+
+        $output = $this->render('<mindfula11y:heading recordUid="9001">C</mindfula11y:heading>');
+
+        self::assertSame('<h2>C</h2>', $output);
+    }
+
+    #[Test]
+    #[DataProvider('hostileHeadingTypesProvider')]
+    public function hostileChildTypeFallsBackToAutomaticLevelling(string $type): void
+    {
+        $output = $this->render(
+            '<mindfula11y:heading relationId="r" childType="{type}">P</mindfula11y:heading>'
+            . '<mindfula11y:heading.descendant ancestorId="r">C</mindfula11y:heading.descendant>',
+            null,
+            ['type' => $type],
+        );
+
+        self::assertStringContainsString('<h2>P</h2>', $output);
+        self::assertStringContainsString('<h3>C</h3>', $output);
     }
 }

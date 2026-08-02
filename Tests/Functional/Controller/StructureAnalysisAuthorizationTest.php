@@ -20,6 +20,7 @@ use MindfulMarkup\MindfulA11y\Domain\Model\StructureAnalysisTicket;
 use MindfulMarkup\MindfulA11y\Service\StructureAnalysisAuthorizationService;
 use MindfulMarkup\MindfulA11y\Service\StructureAnalysisTicketService;
 use MindfulMarkup\MindfulA11y\Tests\Functional\AbstractAuthorizationTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Versioning\VersionState;
@@ -576,6 +577,41 @@ final class StructureAnalysisAuthorizationTest extends AbstractAuthorizationTest
         self::assertSame('tt_content', $body['records'][0]['tableName']);
         self::assertSame('tx_mindfula11y_headingtype', $body['records'][0]['columnName']);
         self::assertSame(101, $body['records'][0]['uid']);
+    }
+
+    /**
+     * Column names only. An unknown *table* is dropped downstream anyway (no
+     * record resolves), so it would not exercise the check under test.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function undefinedColumnProvider(): array
+    {
+        return [
+            'unknown column' => ['tx_not_a_column'],
+            'empty column' => [''],
+            'sql-ish column' => ['uid) OR 1=1 --'],
+        ];
+    }
+
+    /**
+     * The TCA lookup in groupColumnsByRecord() is the whole validation: a column
+     * name that resolves to no defined column is dropped whatever it contains,
+     * so nothing reaches an identifier position on the strength of its
+     * characters. Pinned because a character allowlist that used to sit in front
+     * of it was removed as redundant — this is the check that has to keep
+     * holding, and it had no coverage of its own before.
+     */
+    #[DataProvider('undefinedColumnProvider')]
+    public function testEnrichActionDropsReferencesToUndefinedTcaColumns(string $columnName): void
+    {
+        $this->logInBackendUser(2);
+        $response = $this->enrichmentController()->enrichAction($this->createJsonRequest(['records' => [
+            ['tableName' => 'tt_content', 'columnName' => $columnName, 'uid' => 101],
+        ]]));
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame([], $this->decodeJsonResponse($response)['records']);
     }
 
     public function testEnrichActionCompilesSelectItemsFromCurrentWorkspaceVersion(): void

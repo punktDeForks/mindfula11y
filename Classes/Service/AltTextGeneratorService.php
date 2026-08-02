@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Service;
 
+use Psr\Log\LoggerInterface;
 use TYPO3\CMS\Core\Resource\FileInterface;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 
@@ -39,9 +40,21 @@ final readonly class AltTextGeneratorService
      * @param OpenAIService $openAIService The OpenAI service instance.
      * @param ExtensionConfiguration $extensionConfiguration The extension configuration instance.
      */
+    /**
+     * Largest image this service will encode and send.
+     *
+     * getContents() loads the whole file into memory and base64 inflates it by
+     * a further ~4/3, so an unbounded file turns one authorized generation into
+     * a memory-exhaustion risk. OpenAI rejects images past this size anyway, so
+     * checking up front replaces a guaranteed round-trip failure with an
+     * immediate, logged one.
+     */
+    private const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+
     public function __construct(
         private OpenAIService $openAIService,
         private ExtensionConfiguration $extensionConfiguration,
+        private LoggerInterface $logger,
     ) {}
 
     /**
@@ -56,6 +69,16 @@ final readonly class AltTextGeneratorService
      */
     public function generate(FileInterface $file, string $languageCode = 'en'): ?string
     {
+        $fileSize = (int)$file->getSize();
+        if ($fileSize > self::MAX_IMAGE_BYTES) {
+            $this->logger->warning(
+                'Skipped alternative text generation: image exceeds the {limit} byte limit.',
+                ['limit' => self::MAX_IMAGE_BYTES, 'size' => $fileSize, 'file' => $file->getIdentifier()]
+            );
+
+            return null;
+        }
+
         try {
             $imageUrl = $this->getBase64ImageUrlFromFile($file);
         } catch (\Exception) {

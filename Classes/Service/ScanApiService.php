@@ -43,6 +43,9 @@ final readonly class ScanApiService
      */
     private const REQUEST_TIMEOUT = 10;
 
+    /** Upper bound on scanner-supplied text forwarded to a backend user. */
+    private const MAX_CLIENT_DETAIL_LENGTH = 500;
+
     /**
      * Versioned route prefix of all business endpoints (the health endpoint is unprefixed).
      */
@@ -117,6 +120,39 @@ final readonly class ScanApiService
     public function isConfigured(): bool
     {
         return !empty($this->getApiUrl());
+    }
+
+    /**
+     * The problem detail as it may be shown to a backend user.
+     *
+     * The scanner's own explanation is genuinely useful ("AI audit is not
+     * enabled on this server."), so it is surfaced rather than replaced by a
+     * generic message. But it is third-party text echoing a request that
+     * carried this installation's API token and, for a scan, the site's Basic
+     * Auth credentials — an upstream that reflects its input back in a
+     * validation error would hand those to any editor able to induce one.
+     * Values this installation sent are therefore never allowed to appear in
+     * the message, and its length is bounded so an error page cannot become a
+     * channel for bulk upstream output. The unredacted detail still reaches the
+     * server-side log via logProblem().
+     *
+     * @param array<mixed> $requestSecrets Secret values this request carried, in any shape the caller holds them.
+     */
+    private function toClientSafeDetail(string $detail, array $requestSecrets = []): string
+    {
+        $secrets = array_filter(
+            [...array_values($requestSecrets), $this->getApiToken()],
+            // Non-strings cannot appear verbatim in the response text, and short
+            // values would redact half the message — a real credential is never
+            // this short.
+            static fn(mixed $secret): bool => is_string($secret) && strlen($secret) >= 8,
+        );
+
+        if ($secrets !== []) {
+            $detail = str_replace($secrets, '[redacted]', $detail);
+        }
+
+        return mb_strimwidth($detail, 0, self::MAX_CLIENT_DETAIL_LENGTH, '…');
     }
 
     /**
@@ -296,7 +332,13 @@ final readonly class ScanApiService
 
         if ($response->getStatusCode() !== 201) {
             $problem = $this->logProblem($response, 'Failed to create scan', []);
-            throw new ScanApiRequestException($response->getStatusCode(), $problem['title'], $problem['detail']);
+            // This request carried the site's Basic Auth credentials, so they
+            // join the redaction set for the message the editor receives.
+            throw new ScanApiRequestException(
+                $response->getStatusCode(),
+                $problem['title'],
+                $this->toClientSafeDetail($problem['detail'], (array)($scanOptions['basicAuth'] ?? [])),
+            );
         }
 
         return $this->decodeJsonBody($response, []);
@@ -324,7 +366,11 @@ final readonly class ScanApiService
 
         if ($response->getStatusCode() !== 200) {
             $problem = $this->logProblem($response, 'Failed to cancel scan', ['scanId' => $scanId], 'warning');
-            throw new ScanApiRequestException($response->getStatusCode(), $problem['title'], $problem['detail']);
+            throw new ScanApiRequestException(
+                $response->getStatusCode(),
+                $problem['title'],
+                $this->toClientSafeDetail($problem['detail']),
+            );
         }
 
         return $this->decodeJsonBody($response, ['scanId' => $scanId]);
@@ -395,7 +441,7 @@ final readonly class ScanApiService
                 'scanId' => $scanId,
             ]);
             $problem = $this->parseProblemDetails($response);
-            throw new ScanApiRequestException(404, $problem['title'], $problem['detail']);
+            throw new ScanApiRequestException(404, $problem['title'], $this->toClientSafeDetail($problem['detail']));
         }
 
         if ($response->getStatusCode() !== 200) {

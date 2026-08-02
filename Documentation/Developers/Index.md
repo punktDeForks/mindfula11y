@@ -238,6 +238,22 @@ Optional tag override:
 </mindfula11y:landmark>
 ```
 
+`tagName` is written into the markup as given. A landmark element (`aside`,
+`footer`, `form`, `header`, `main`, `nav`, `search`, `section`) keeps its
+landmark semantics; a generic container or your own custom element does not.
+
+`role` is validated: only the landmark roles above are emitted, and an
+unrecognized value is dropped rather than written into the markup — so a stale
+record value cannot render `role="presentation"` and remove the element from the
+accessibility tree. The heading ViewHelpers validate their heading type the same
+way.
+
+An accessible name supplied through `aria` is kept only when the rendered
+element actually conveys a landmark. Overriding `tagName` with a generic
+container (`div`, `span`, your own custom element) and no `role`, or passing a
+`role` that is not a landmark role, drops `aria-label`/`aria-labelledby`
+rather than attaching a name to an element assistive technology cannot expose.
+
 ## Extending TCA for custom records
 
 If you want custom tables to participate in the same editorial accessibility workflow, add equivalent fields and use the same ViewHelpers.

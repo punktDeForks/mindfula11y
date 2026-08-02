@@ -17,6 +17,7 @@ namespace MindfulMarkup\MindfulA11y\Tests\Functional\Hooks;
 use MindfulMarkup\MindfulA11y\Tests\Functional\AbstractAuthorizationTestCase;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\DataHandling\DataHandler;
+use TYPO3\CMS\Core\Schema\TcaSchemaFactory;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
@@ -166,6 +167,164 @@ final class DecorativeFileReferenceDataHandlerGuardTest extends AbstractAuthoriz
         self::assertSame(1, (int)$reference['tx_mindfula11y_decorative'], 'decorative stored under core reference rules');
         self::assertSame('', (string)$reference['alternative'], 'alternative blanked');
         self::assertSame([], $dataHandler->errorLog, 'no denial without parent-table access');
+    }
+
+    /**
+     * User 20 holds ONLY the decorative exclude-field grant. DataHandler would
+     * store the toggle but silently drop the guard's injected blanks for the
+     * ungranted alternative/title fields, leaving a decorative reference that
+     * still renders its stored alternative text. The guard must reject the
+     * toggle as one atomic change and surface an error.
+     */
+    public function testTogglePartialGrantsIsRejectedInsteadOfHalfApplied(): void
+    {
+        $this->getConnectionPool()
+            ->getConnectionForTable('sys_file_reference')
+            ->update('sys_file_reference', ['alternative' => 'Existing alt text'], ['uid' => 1]);
+        $backendUser = $this->logInBackendUser(20);
+
+        $dataHandler = $this->runDataHandler([
+            'sys_file_reference' => [
+                1 => [
+                    'tx_mindfula11y_decorative' => 1,
+                ],
+            ],
+        ], $backendUser);
+
+        $reference = $this->fetchReference(1);
+        self::assertSame(0, (int)$reference['tx_mindfula11y_decorative'], 'toggle rejected without alternative/title grants');
+        self::assertSame('Existing alt text', (string)$reference['alternative'], 'stored alternative untouched');
+        self::assertNotSame([], $dataHandler->errorLog, 'rejection is surfaced, not silent');
+    }
+
+    /**
+     * The mirror image of the case above: the adjacent-field grants are held but
+     * the toggle's own is NOT. The guard's atomicity check passes, yet
+     * DataHandler drops the toggle for the missing grant — so deriving the
+     * blanking from the incoming value would wipe a stored alternative and title
+     * while the flag stays off. Destructive precisely because it is silent: the
+     * editor sees an unchanged toggle and no error.
+     */
+    public function testMissingToggleGrantDoesNotWipeAdjacentFields(): void
+    {
+        // Group 20 keeps its adjacent-field access but loses the toggle grant.
+        $this->getConnectionPool()->getConnectionForTable('be_groups')->update(
+            'be_groups',
+            ['non_exclude_fields' => 'sys_file_reference:alternative,sys_file_reference:title'],
+            ['uid' => 20],
+        );
+        $this->getConnectionPool()->getConnectionForTable('sys_file_reference')->update(
+            'sys_file_reference',
+            ['alternative' => 'Existing alt text', 'title' => 'Existing title'],
+            ['uid' => 1],
+        );
+        $backendUser = $this->logInBackendUser(20);
+
+        $this->runDataHandler([
+            'sys_file_reference' => [
+                1 => [
+                    'tx_mindfula11y_decorative' => 1,
+                ],
+            ],
+        ], $backendUser);
+
+        $reference = $this->fetchReference(1);
+        self::assertSame(0, (int)$reference['tx_mindfula11y_decorative'], 'toggle dropped by DataHandler for the missing grant');
+        self::assertSame('Existing alt text', (string)$reference['alternative'], 'alternative survives the dropped toggle');
+        self::assertSame('Existing title', (string)$reference['title'], 'title survives the dropped toggle');
+    }
+
+    /**
+     * FormEngine resubmits every rendered field, so an unchanged resave of an
+     * already-decorative reference carries the flag too. That is not an enable
+     * and must not be rejected — otherwise the user gets a red flash message on
+     * every save of that record while the stored value never changed.
+     */
+    public function testUnchangedResaveOfDecorativeReferenceIsNotRejected(): void
+    {
+        $this->seedStoredDecorative(1);
+        $backendUser = $this->logInBackendUser(20);
+
+        $dataHandler = $this->runDataHandler([
+            'sys_file_reference' => [
+                1 => [
+                    'tx_mindfula11y_decorative' => 1,
+                ],
+            ],
+        ], $backendUser);
+
+        $reference = $this->fetchReference(1);
+        self::assertSame(1, (int)$reference['tx_mindfula11y_decorative'], 'decorative stays on');
+        self::assertSame([], $dataHandler->errorLog, 'an unchanged resave raises no error');
+    }
+
+    /**
+     * An installation that removes `exclude` from the core alternative/title
+     * columns needs no non_exclude_fields grant for them: DataHandler's filter
+     * only drops fields TCA marks as exclude, so the injected blanks are
+     * written and the toggle must be accepted. The module offers it in exactly
+     * this case, because PermissionService::checkNonExcludeFields() consults
+     * TCA the same way — the guard must not disagree with core and the UI.
+     */
+    public function testToggleAcceptedWhenAdjacentFieldsAreNotExcludeFields(): void
+    {
+        $originalTca = $GLOBALS['TCA'];
+        unset(
+            $GLOBALS['TCA']['sys_file_reference']['columns']['alternative']['exclude'],
+            $GLOBALS['TCA']['sys_file_reference']['columns']['title']['exclude'],
+        );
+        // TYPO3 v14's DataHandler reads the exclude flag through the Schema API
+        // (TcaSchema field ->supportsAccessControl()), which is built once at
+        // bootstrap — mutating $GLOBALS['TCA'] alone would leave it stale and
+        // the scenario unexercised.
+        $schemaFactory = $this->get(TcaSchemaFactory::class);
+        $schemaFactory->rebuild($GLOBALS['TCA']);
+
+        try {
+            $this->getConnectionPool()
+                ->getConnectionForTable('sys_file_reference')
+                ->update('sys_file_reference', ['alternative' => 'Existing alt text'], ['uid' => 1]);
+            // User 20 holds the decorative grant but neither adjacent grant —
+            // the same user the partial-grant rejection above uses.
+            $backendUser = $this->logInBackendUser(20);
+
+            $dataHandler = $this->runDataHandler([
+                'sys_file_reference' => [
+                    1 => [
+                        'tx_mindfula11y_decorative' => 1,
+                    ],
+                ],
+            ], $backendUser);
+
+            $reference = $this->fetchReference(1);
+            self::assertSame(1, (int)$reference['tx_mindfula11y_decorative'], 'toggle stored without exclude flags');
+            self::assertSame('', (string)$reference['alternative'], 'blanking applied');
+            self::assertSame([], $dataHandler->errorLog, 'no spurious denial');
+        } finally {
+            $GLOBALS['TCA'] = $originalTca;
+            $schemaFactory->rebuild($GLOBALS['TCA']);
+        }
+    }
+
+    /**
+     * Disabling decorative blanks nothing, so the partial-grant user may
+     * still turn the flag OFF.
+     */
+    public function testToggleOffNeedsNoAdjacentFieldGrants(): void
+    {
+        $this->seedStoredDecorative(1);
+        $backendUser = $this->logInBackendUser(20);
+
+        $dataHandler = $this->runDataHandler([
+            'sys_file_reference' => [
+                1 => [
+                    'tx_mindfula11y_decorative' => 0,
+                ],
+            ],
+        ], $backendUser);
+
+        self::assertSame(0, (int)$this->fetchReference(1)['tx_mindfula11y_decorative'], 'toggle off stored');
+        self::assertSame([], $dataHandler->errorLog, 'no denial for disabling');
     }
 
     /**

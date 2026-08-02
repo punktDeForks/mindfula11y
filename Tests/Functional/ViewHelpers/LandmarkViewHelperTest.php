@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace MindfulMarkup\MindfulA11y\Tests\Functional\ViewHelpers;
 
 use MindfulMarkup\MindfulA11y\Domain\Model\StructureAnalysisTicket;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Http\ServerRequest;
@@ -35,7 +36,10 @@ final class LandmarkViewHelperTest extends FunctionalTestCase
         'mindfulmarkup/mindfula11y',
     ];
 
-    private function render(string $source, ?ServerRequestInterface $request = null): string
+    /**
+     * @param array<string, mixed> $variables
+     */
+    private function render(string $source, ?ServerRequestInterface $request = null, array $variables = []): string
     {
         $context = $this->get(RenderingContextFactory::class)->create([], $request);
         $context->getTemplatePaths()->setTemplateSource(
@@ -44,7 +48,10 @@ final class LandmarkViewHelperTest extends FunctionalTestCase
             . '</html>'
         );
 
-        return trim((new TemplateView($context))->render());
+        $view = new TemplateView($context);
+        $view->assignMultiple($variables);
+
+        return trim($view->render());
     }
 
     private function structureAnalysisRequest(): ServerRequestInterface
@@ -98,6 +105,251 @@ final class LandmarkViewHelperTest extends FunctionalTestCase
         $output = $this->render('<mindfula11y:landmark role="navigation" tagName="div">Links</mindfula11y:landmark>');
 
         self::assertStringContainsString('<div role="navigation">Links</div>', $output);
+    }
+
+    #[Test]
+    #[DataProvider('customElementNamesProvider')]
+    public function tagNameOverrideRendersCustomElementNames(string $tagName): void
+    {
+        // The argument's contract includes integrators' own components — every
+        // standards-valid custom element name must work, not only the ASCII-dash
+        // convention: PCENChar also spans `.`, `_` and Unicode.
+        $output = $this->render(
+            '<mindfula11y:landmark tagName="{name}">Content</mindfula11y:landmark>',
+            null,
+            ['name' => $tagName],
+        );
+
+        self::assertStringContainsString('<' . $tagName . '>Content</' . $tagName . '>', $output);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function customElementNamesProvider(): array
+    {
+        return [
+            'conventional dash name' => ['my-shell'],
+            'period is a PCENChar' => ['my-widget.shell'],
+            'underscore is a PCENChar' => ['my_widget-shell'],
+            'non-ASCII letters are PCENChars' => ['my-élément'],
+        ];
+    }
+
+    #[Test]
+    public function tagNameIsUsedAsGiven(): void
+    {
+        // Pins the deliberate posture, so nobody re-adds an allowlist: `tagName`
+        // is a template-author argument, used as written. `role` is the argument
+        // that carries record data — see nonLandmarkRoleNeverReachesTheMarkup().
+        $output = $this->render(
+            '<mindfula11y:landmark tagName="{name}">Content</mindfula11y:landmark>',
+            null,
+            ['name' => 'aside'],
+        );
+
+        self::assertStringContainsString('<aside>Content</aside>', $output);
+    }
+
+    #[Test]
+    public function genericOverrideWithoutARoleDropsTheAccessibleName(): void
+    {
+        // A generic container conveys no landmark, so keeping the accessible
+        // name would label an element assistive technology cannot expose it on.
+        $output = $this->render(
+            '<mindfula11y:landmark tagName="span" aria="{label: \'Sidebar\'}">Content</mindfula11y:landmark>',
+        );
+
+        self::assertStringContainsString('<span>Content</span>', $output);
+        self::assertStringNotContainsString('aria-label', $output);
+    }
+
+    #[Test]
+    public function headerOverrideGetsAnExplicitBannerRole(): void
+    {
+        // header exposes banner ONLY at the top level; content elements render
+        // inside main/section, so without an explicit role the element is
+        // generic and the accessible name below would label nothing.
+        $output = $this->render('<mindfula11y:landmark tagName="header" aria="{label: \'Article header\'}">C</mindfula11y:landmark>');
+
+        self::assertStringContainsString('role="banner"', $output);
+        self::assertStringContainsString('aria-label="Article header"', $output);
+    }
+
+    #[Test]
+    public function footerOverrideGetsAnExplicitContentinfoRole(): void
+    {
+        $output = $this->render('<mindfula11y:landmark tagName="footer">C</mindfula11y:landmark>');
+
+        self::assertStringContainsString('<footer role="contentinfo">C</footer>', $output);
+    }
+
+    #[Test]
+    #[DataProvider('nonLandmarkRolesProvider')]
+    public function nonLandmarkRoleNeverReachesTheMarkup(string $role): void
+    {
+        // The documented binding feeds this argument straight from a record
+        // column, and DataHandler does NOT validate a static-items select
+        // against its declared items (see checkValueForGroupFolderSelect: the
+        // source itself notes the missing check), so an editor can store any
+        // string there via tce_db. Rendering is therefore the only layer that
+        // sees every write path — FormEngine, AJAX, CLI and imports alike.
+        $output = $this->render(
+            '<mindfula11y:landmark role="{role}">C</mindfula11y:landmark>',
+            null,
+            ['role' => $role],
+        );
+
+        self::assertStringContainsString('<div>C</div>', $output);
+        self::assertStringNotContainsString('role=', $output);
+    }
+
+    #[Test]
+    #[DataProvider('nonLandmarkRolesProvider')]
+    public function nonLandmarkRoleIsDroppedEvenWithATagNameOverride(string $role): void
+    {
+        // The override branch must agree with the role-derived one: a stale
+        // record value like "presentation" would otherwise reach the markup and
+        // strip the element out of the accessibility tree, with the outcome
+        // hinging on whether the template happened to pass tagName.
+        $output = $this->render(
+            '<mindfula11y:landmark role="{role}" tagName="div">C</mindfula11y:landmark>',
+            null,
+            ['role' => $role],
+        );
+
+        self::assertStringContainsString('<div>C</div>', $output);
+        self::assertStringNotContainsString('role=', $output);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function nonLandmarkRolesProvider(): array
+    {
+        return [
+            'presentation removes the element from the a11y tree' => ['presentation'],
+            'none is its synonym' => ['none'],
+            'an unknown value' => ['gibberish'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('genericContainerProvider')]
+    public function genericContainerOverridesRenderWithoutALandmarkRole(string $tagName): void
+    {
+        $output = $this->render(
+            '<mindfula11y:landmark tagName="{name}">C</mindfula11y:landmark>',
+            null,
+            ['name' => $tagName],
+        );
+
+        self::assertStringContainsString('<' . $tagName . '>C</' . $tagName . '>', $output);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function genericContainerProvider(): array
+    {
+        return [
+            'div' => ['div'],
+            'span' => ['span'],
+            'article' => ['article'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('nonLandmarkOutcomeProvider')]
+    public function ariaLabelIsDroppedWhenNoLandmarkSemanticsAreEmitted(string $source, array $variables): void
+    {
+        // The accessible name follows the RESOLVED outcome, not the raw
+        // arguments: a generic element carries no landmark for the name to
+        // attach to, so keeping it would only add noise to the a11y tree.
+        $output = $this->render($source, null, $variables);
+
+        self::assertStringNotContainsString('aria-label', $output);
+    }
+
+    /**
+     * @return array<string, array{string, array<string, mixed>}>
+     */
+    public static function nonLandmarkOutcomeProvider(): array
+    {
+        return [
+            'accepted but generic override, no role' => [
+                '<mindfula11y:landmark tagName="div" aria="{label: \'Sidebar\'}">C</mindfula11y:landmark>',
+                [],
+            ],
+            'accepted custom element, no role' => [
+                '<mindfula11y:landmark tagName="my-shell" aria="{label: \'Sidebar\'}">C</mindfula11y:landmark>',
+                [],
+            ],
+            'role that is not a landmark' => [
+                '<mindfula11y:landmark role="{role}" aria="{label: \'Sidebar\'}">C</mindfula11y:landmark>',
+                ['role' => 'gibberish'],
+            ],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('landmarkOutcomeProvider')]
+    public function ariaLabelSurvivesWhenLandmarkSemanticsAreEmitted(string $source): void
+    {
+        // The inverse guard: an element that IS a landmark keeps its accessible
+        // name — including section/form, which only become landmarks by having one.
+        $output = $this->render($source);
+
+        self::assertStringContainsString('aria-label="Sidebar"', $output);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function landmarkOutcomeProvider(): array
+    {
+        return [
+            'role-derived landmark element' => ['<mindfula11y:landmark role="navigation" aria="{label: \'Sidebar\'}">C</mindfula11y:landmark>'],
+            'override carries the landmark implicitly' => ['<mindfula11y:landmark tagName="nav" aria="{label: \'Sidebar\'}">C</mindfula11y:landmark>'],
+            'section is a landmark once named' => ['<mindfula11y:landmark tagName="section" aria="{label: \'Sidebar\'}">C</mindfula11y:landmark>'],
+            'explicit role on a generic override' => ['<mindfula11y:landmark role="navigation" tagName="div" aria="{label: \'Sidebar\'}">C</mindfula11y:landmark>'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('emptyContentTagNamesProvider')]
+    public function emptyChildrenStillEmitAClosingTag(string $source, string $expected): void
+    {
+        // HTML has no self-closing syntax for these elements, so `<main />`
+        // parses as an unclosed start tag and swallows every following sibling.
+        $output = $this->render($source);
+
+        self::assertStringContainsString($expected, $output);
+        self::assertStringNotContainsString('/>', $output);
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function emptyContentTagNamesProvider(): array
+    {
+        return [
+            'role-derived element' => ['<mindfula11y:landmark role="main"></mindfula11y:landmark>', '<main></main>'],
+            'custom element override' => ['<mindfula11y:landmark tagName="my-shell"></mindfula11y:landmark>', '<my-shell></my-shell>'],
+        ];
+    }
+
+    #[Test]
+    public function uppercaseCustomElementIsLowercasedInBothTags(): void
+    {
+        $output = $this->render(
+            '<mindfula11y:landmark tagName="{name}">C</mindfula11y:landmark>',
+            null,
+            ['name' => 'MY-SHELL'],
+        );
+
+        self::assertStringContainsString('<my-shell>C</my-shell>', $output);
+        self::assertStringNotContainsString('MY-SHELL', $output);
     }
 
     #[Test]

@@ -739,8 +739,8 @@ final class PermissionServiceTest extends AbstractAuthorizationTestCase
     {
         $this->logInBackendUser(7);
         self::assertSame(
-            ['CType' => ['text']],
-            $this->permissionService()->getAllowedAuthModeValues('tt_content'),
+            ['text'],
+            array_values(array_diff($this->permissionService()->getAllowedAuthModeValues('tt_content')['CType'], [''])),
             'user 7 group (ctype_text_only) only grants tt_content:CType:text'
         );
     }
@@ -753,7 +753,32 @@ final class PermissionServiceTest extends AbstractAuthorizationTestCase
         self::assertArrayHasKey('CType', $allowedValues);
         self::assertContains('text', $allowedValues['CType']);
         self::assertContains('textmedia', $allowedValues['CType']);
-        self::assertCount(2, $allowedValues['CType'], 'the editor group only grants exactly text and textmedia');
+        self::assertContains('', $allowedValues['CType'], 'the empty value is always allowed, mirroring checkAuthMode()');
+        self::assertCount(3, $allowedValues['CType'], 'the editor group only grants exactly text and textmedia (plus the blank value)');
+    }
+
+    /**
+     * tx_a11ytest_dynamictype declares authMode but populates its items only
+     * at FormEngine render time. No grant can exist for such values, so only
+     * the always-allowed empty value may pass — skipping the column entirely
+     * would fail open and list record types the user was never granted.
+     */
+    public function testGetAllowedAuthModeValuesFailsClosedWithoutStaticItems(): void
+    {
+        $this->logInBackendUser(2);
+        $allowedValues = $this->permissionService()->getAllowedAuthModeValues('tt_content');
+
+        self::assertSame([''], $allowedValues['tx_a11ytest_dynamictype'] ?? null);
+    }
+
+    /**
+     * Admins pass checkAuthMode() for every value, including dynamically
+     * populated ones — no column may be constrained for them.
+     */
+    public function testGetAllowedAuthModeValuesAdminIsUnconstrained(): void
+    {
+        $this->logInBackendUser(1);
+        self::assertSame([], $this->permissionService()->getAllowedAuthModeValues('tt_content'));
     }
 
     public function testGetAllowedAuthModeValuesMissingTable(): void

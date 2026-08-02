@@ -35,6 +35,7 @@ use Doctrine\DBAL\Exception;
 use MindfulMarkup\MindfulA11y\Domain\Model\AltlessFileReference;
 use MindfulMarkup\MindfulA11y\Domain\Model\AltlessFileReferenceTable;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
+use TYPO3\CMS\Core\Versioning\VersionState;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 
 /**
@@ -251,7 +252,10 @@ final readonly class AltlessFileReferenceRepository
      * sys_file_reference — the default restriction admits only t3ver_oid=0
      * rows and would silently drop every plain workspace version. The
      * metadata join keeps its workspace scoping so at most the one live/new
-     * metadata row per file and language matches.
+     * metadata row per file and language matches; in a workspace the
+     * alternative-text verdict on that row is then taken from its version
+     * row (metadata is workspace-mutable state too), so the SQL predicate
+     * only applies in the live workspace.
      *
      * @param array<int> $referenceUids
      * @return array<array<string, mixed>>
@@ -296,7 +300,10 @@ final readonly class AltlessFileReferenceRepository
             )->where(...$mutableClauses);
 
         if ($filterFileMetaData) {
-            $this->addFilterByFileMetaDataClauses($queryBuilder);
+            // The restriction MUST be registered before the join is created:
+            // QueryBuilder materializes joined-table restrictions into the ON
+            // clause at join() time, so a container added afterwards silently
+            // never applies and every workspace's metadata rows would join.
             $queryBuilder->getRestrictions()->add(
                 GeneralUtility::makeInstance(LimitToTablesRestrictionContainer::class)
                     ->addForTables(
@@ -304,12 +311,211 @@ final readonly class AltlessFileReferenceRepository
                         ['mindfula11y_sys_file_metadata']
                     )
             );
+            $this->addFileMetaDataJoin($queryBuilder);
+            // Branch on "is this a real workspace", NOT on "is this live":
+            // BackendUserAuthentication::$workspace is -99 for a user who may
+            // neither work live nor reach any workspace, and testing === 0 here
+            // would leave such a user with no metadata filter at all. Must stay
+            // in step with the version-resolution condition below.
+            if ($workspaceId > 0) {
+                // The joined row is the live (or workspace-new) one; its
+                // version row decides in a workspace. Select its identity and
+                // filter after resolving the versions in PHP.
+                $queryBuilder->addSelect(
+                    'mindfula11y_sys_file_metadata.uid AS metadata_uid',
+                    'mindfula11y_sys_file_metadata.alternative AS metadata_alternative'
+                );
+            } else {
+                $queryBuilder->andWhere($this->createMetaDataAlternativeMissingClause($queryBuilder));
+            }
         }
 
-        return $queryBuilder
+        $fileRows = $queryBuilder
             ->orderBy('sys_file_reference.uid', 'ASC')
             ->executeQuery()
             ->fetchAllAssociative();
+
+        if ($filterFileMetaData && $workspaceId > 0) {
+            $fileRows = $this->filterRowsByEffectiveMetaDataAlternative($fileRows, $workspaceId);
+        }
+
+        return $fileRows;
+    }
+
+    /**
+     * Keep only rows whose *effective* metadata carries no alternative text.
+     *
+     * The joined metadata row is the live/new one; an edit in a workspace
+     * lives in a version row (t3ver_oid = live uid) that the join's
+     * WorkspaceRestriction rightly excludes. Resolve those versions in one
+     * query and judge the alternative on them — a draft that adds alternative
+     * text hides the reference, a draft that clears it (or deletes the
+     * metadata) surfaces it. Strips the metadata_* helper columns so callers
+     * receive plain sys_file rows.
+     *
+     * @param array<array<string, mixed>> $fileRows
+     * @return array<array<string, mixed>>
+     */
+    private function filterRowsByEffectiveMetaDataAlternative(array $fileRows, int $workspaceId): array
+    {
+        $metadataUids = [];
+        foreach ($fileRows as $fileRow) {
+            if ((int)($fileRow['metadata_uid'] ?? 0) > 0) {
+                $metadataUids[] = (int)$fileRow['metadata_uid'];
+            }
+        }
+
+        $versionRows = $this->fetchMetaDataVersionRows($metadataUids, $workspaceId);
+
+        $filteredRows = [];
+        foreach ($fileRows as $fileRow) {
+            $metadataUid = (int)($fileRow['metadata_uid'] ?? 0);
+            $alternative = $fileRow['metadata_alternative'] ?? null;
+            unset($fileRow['metadata_uid'], $fileRow['metadata_alternative']);
+
+            $alternative = $this->applyMetaDataVersion($alternative, $versionRows[$metadataUid] ?? null);
+
+            if ($alternative === null || $alternative === '') {
+                $filteredRows[] = $fileRow;
+            }
+        }
+
+        return $filteredRows;
+    }
+
+    /**
+     * The workspace version rows for the given live metadata uids, keyed by the
+     * live uid they version.
+     *
+     * The join in the listing query is workspace-RESTRICTED, so it supplies the
+     * live (or workspace-new) row and never the version of an edited one; those
+     * are resolved here. Batched because the listing needs a whole page of rows
+     * at once — the single-file caller passes a one-element list rather than
+     * growing a second query shape.
+     *
+     * @param list<int> $liveUids
+     * @return array<int, array<string, mixed>>
+     */
+    private function fetchMetaDataVersionRows(array $liveUids, int $workspaceId): array
+    {
+        if (empty($liveUids)) {
+            return [];
+        }
+
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_metadata');
+        $queryBuilder->getRestrictions()
+            ->removeAll()
+            ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+
+        $result = $queryBuilder
+            ->select('t3ver_oid', 't3ver_state', 'alternative')
+            ->from('sys_file_metadata')
+            ->where(
+                $queryBuilder->expr()->eq('t3ver_wsid', $queryBuilder->createNamedParameter($workspaceId, Connection::PARAM_INT)),
+                $queryBuilder->expr()->in('t3ver_oid', $queryBuilder->createNamedParameter(array_values(array_unique($liveUids)), Connection::PARAM_INT_ARRAY))
+            )
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $versionRows = [];
+        foreach ($result as $versionRow) {
+            $versionRows[(int)$versionRow['t3ver_oid']] = $versionRow;
+        }
+
+        return $versionRows;
+    }
+
+    /**
+     * Apply a metadata version row on top of the live alternative.
+     *
+     * The single definition of "which alternative text does this file's
+     * metadata effectively carry", shared by the listing filter and by
+     * findEffectiveMetaDataAlternative() so the module cannot list a reference
+     * as missing while the rendered row advertises the live text as inherited.
+     * A delete placeholder means the draft has no metadata row at all, so it
+     * contributes no fallback rather than the value it still stores.
+     *
+     * @param array<string, mixed>|null $versionRow
+     */
+    private function applyMetaDataVersion(?string $liveAlternative, ?array $versionRow): ?string
+    {
+        if ($versionRow === null) {
+            return $liveAlternative;
+        }
+
+        if (VersionState::tryFrom((int)$versionRow['t3ver_state']) === VersionState::DELETE_PLACEHOLDER) {
+            return null;
+        }
+
+        return $versionRow['alternative'];
+    }
+
+    /**
+     * The alternative text a file's metadata effectively carries in the given
+     * workspace, or null when it carries none.
+     *
+     * The rendering path needs the same answer the listing filter computes, but
+     * for a single file: FAL resolves metadata through WorkspaceRestriction,
+     * which returns the LIVE row for a file whose metadata was edited in a
+     * workspace (the version row has t3ver_oid > 0 and is excluded), and core's
+     * overlay listener for FAL metadata is frontend-only. Reading the file
+     * property directly in a backend module therefore reports live text as the
+     * inherited alternative even when the draft cleared or deleted it.
+     *
+     * Answers for the metadata row the LISTING would have judged — same
+     * language, same workspace restriction — so a reference can never be
+     * reported as missing while the row beside it advertises inherited text.
+     *
+     * @param int $languageId The reference's language; metadata is matched on it.
+     */
+    public function findEffectiveMetaDataAlternative(int $fileUid, int $workspaceId, int $languageId = 0): ?string
+    {
+        $queryBuilder = $this->connectionPool->getQueryBuilderForTable('sys_file_metadata');
+        // The same restriction set the listing's metadata join carries, so both
+        // sides pick the same row: WorkspaceRestriction admits the live row AND
+        // a workspace-NEW one (t3ver_oid = 0, t3ver_wsid = W), which a hand-rolled
+        // "t3ver_wsid = 0" would have excluded — leaving a file whose only
+        // metadata was created inside the workspace with no inherited text.
+        $queryBuilder->getRestrictions()
+            ->removeAll()
+            ->add(GeneralUtility::makeInstance(DeletedRestriction::class))
+            ->add(GeneralUtility::makeInstance(WorkspaceRestriction::class, max($workspaceId, 0)));
+
+        $joinedRow = $queryBuilder
+            ->select('uid', 'alternative')
+            ->from('sys_file_metadata')
+            ->where(
+                $queryBuilder->expr()->eq('file', $queryBuilder->createNamedParameter($fileUid, Connection::PARAM_INT)),
+                // Matches the join's language predicate rather than FAL's
+                // (0, -1): the listing decides "missing" from the metadata row
+                // of the reference's OWN language, so the inherited text shown
+                // beside that verdict has to come from the same row.
+                $queryBuilder->expr()->eq(
+                    $this->getLanguageField('sys_file_metadata'),
+                    $queryBuilder->createNamedParameter($languageId, Connection::PARAM_INT)
+                ),
+            )
+            ->orderBy('uid', 'ASC')
+            ->setMaxResults(1)
+            ->executeQuery()
+            ->fetchAssociative();
+
+        if ($joinedRow === false) {
+            return null;
+        }
+
+        $alternative = $joinedRow['alternative'] === null ? null : (string)$joinedRow['alternative'];
+
+        if ($workspaceId <= 0) {
+            return $alternative;
+        }
+
+        $joinedUid = (int)$joinedRow['uid'];
+
+        return $this->applyMetaDataVersion(
+            $alternative,
+            $this->fetchMetaDataVersionRows([$joinedUid], $workspaceId)[$joinedUid] ?? null,
+        );
     }
 
     /**
@@ -344,7 +550,10 @@ final readonly class AltlessFileReferenceRepository
      * effective rows in fetchFileRowsForReferenceUids(). The parent
      * authMode conditions do run here and thus judge the live parent row — a
      * parent whose restricting column changed only in the workspace keeps its
-     * live visibility, matching what the module's other permission checks see.
+     * live visibility. That is deliberate: core itself never gates listing
+     * visibility on authMode (the filter is this module's own hardening), and
+     * the per-record edit controls still judge the workspace row through
+     * checkRecordEditAccess().
      *
      * @param array<AltlessFileReferenceTable> $tables Array of table configurations to select file references by.
      * @param int $languageId The language UID to select file references for.
@@ -395,13 +604,41 @@ final readonly class AltlessFileReferenceRepository
 
             $authModeClauses = [];
             foreach ($table->getAuthModeColumns() as $columnName => $allowedValues) {
-                $authModeClauses[] = $queryBuilder->expr()->in(
-                    $table->getTableName() . '.' . $columnName,
+                $columnReference = $table->getTableName() . '.' . $columnName;
+                $valueClause = $queryBuilder->expr()->in(
+                    $columnReference,
                     $queryBuilder->createNamedParameter($allowedValues, Connection::PARAM_STR_ARRAY)
                 );
+
+                // checkAuthMode() casts the stored value to string before its
+                // "blank is always allowed" short-circuit, so NULL is allowed
+                // there — but SQL NULL matches no IN () list, not even IN ('').
+                // Without this branch a nullable authMode column would hide rows
+                // the user is in fact allowed to see. The parent-existence
+                // conjunct below keeps this branch honest: it fires only for a
+                // real parent row storing NULL, never for an absent join.
+                if (in_array('', $allowedValues, true)) {
+                    $valueClause = $queryBuilder->expr()->or(
+                        $valueClause,
+                        $queryBuilder->expr()->isNull($columnReference),
+                    );
+                }
+
+                $authModeClauses[] = $valueClause;
             }
 
             $tableClauses[] = $queryBuilder->expr()->and(
+                // A reference is authorized THROUGH its parent row, so that row
+                // must actually be visible. leftJoin() materializes the deleted
+                // and workspace restrictions into the ON clause, so a parent the
+                // user may not see yields all-NULL parent columns rather than
+                // dropping the reference — and every predicate below that reads
+                // a parent column would then be evaluated against NULL. Without
+                // this conjunct the authMode IS NULL branch accepts a reference
+                // whose parent was deleted, regardless of the value that parent
+                // used to store; a table declaring no authMode column at all
+                // would carry no parent predicate whatsoever.
+                $queryBuilder->expr()->isNotNull($table->getTableName() . '.uid'),
                 $queryBuilder->expr()->eq('sys_file_reference.tablenames', $queryBuilder->createNamedParameter($table->getTableName(), Connection::PARAM_STR)),
                 $queryBuilder->expr()->in('sys_file_reference.fieldname', $queryBuilder->createNamedParameter($table->getFileColumnNames(), Connection::PARAM_STR_ARRAY)),
                 $queryBuilder->expr()->in('sys_file_reference.pid', $queryBuilder->createNamedParameter($table->getPageIds(), Connection::PARAM_INT_ARRAY)),
@@ -424,11 +661,11 @@ final readonly class AltlessFileReferenceRepository
     }
 
     /**
-     * Add filter by file metadata clauses.
-     * 
+     * Join the file metadata row matching the reference's file and language.
+     *
      * @param QueryBuilder $queryBuilder The query builder instance.
      */
-    private function addFilterByFileMetaDataClauses(QueryBuilder $queryBuilder): QueryBuilder
+    private function addFileMetaDataJoin(QueryBuilder $queryBuilder): QueryBuilder
     {
         $queryBuilder->leftJoin(
             'sys_file_reference',
@@ -438,14 +675,20 @@ final readonly class AltlessFileReferenceRepository
                 $queryBuilder->expr()->eq('sys_file_reference.uid_local', $queryBuilder->quoteIdentifier('mindfula11y_sys_file_metadata.file')),
                 $queryBuilder->expr()->eq('sys_file_reference.' . $this->getLanguageField('sys_file_reference'), $queryBuilder->quoteIdentifier('mindfula11y_sys_file_metadata.' . $this->getLanguageField('sys_file_metadata')))
             )
-        )->andWhere(
-            $queryBuilder->expr()->or(
-                $queryBuilder->expr()->isNull('mindfula11y_sys_file_metadata.alternative'),
-                $queryBuilder->expr()->eq('mindfula11y_sys_file_metadata.alternative', $queryBuilder->createNamedParameter('', Connection::PARAM_STR)),
-            )
         );
 
         return $queryBuilder;
+    }
+
+    /**
+     * The "joined metadata row carries no alternative text" predicate.
+     */
+    private function createMetaDataAlternativeMissingClause(QueryBuilder $queryBuilder): string
+    {
+        return (string)$queryBuilder->expr()->or(
+            $queryBuilder->expr()->isNull('mindfula11y_sys_file_metadata.alternative'),
+            $queryBuilder->expr()->eq('mindfula11y_sys_file_metadata.alternative', $queryBuilder->createNamedParameter('', Connection::PARAM_STR)),
+        );
     }
 
     /**

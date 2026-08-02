@@ -25,6 +25,9 @@ namespace MindfulMarkup\MindfulA11y\ViewHelpers;
 
 use MindfulMarkup\MindfulA11y\Domain\Model\AltlessFileReference;
 use MindfulMarkup\MindfulA11y\Domain\Model\GenerateAltTextDemand;
+use MindfulMarkup\MindfulA11y\Domain\Repository\AltlessFileReferenceRepository;
+use MindfulMarkup\MindfulA11y\Hooks\DecorativeFileReferenceDataHandlerGuard;
+use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use MindfulMarkup\MindfulA11y\Service\AltTextDemandFactory;
 use MindfulMarkup\MindfulA11y\Service\DemandSignatureService;
 use MindfulMarkup\MindfulA11y\Service\OpenAIService;
@@ -66,6 +69,12 @@ class AltlessFileReferenceViewHelper extends AbstractTagBasedViewHelper
     protected readonly DemandSignatureService $demandSignatureService;
 
     protected readonly AltTextDemandFactory $altTextDemandFactory;
+
+    /**
+     * Supplies the workspace-effective metadata alternative — see its use in
+     * render() for why the file's own property is not the same answer.
+     */
+    protected readonly AltlessFileReferenceRepository $altlessFileReferenceRepository;
 
     /**
      * Tag name.
@@ -114,6 +123,11 @@ class AltlessFileReferenceViewHelper extends AbstractTagBasedViewHelper
         $this->altTextDemandFactory = $altTextDemandFactory;
     }
 
+    public function injectAltlessFileReferenceRepository(AltlessFileReferenceRepository $altlessFileReferenceRepository): void
+    {
+        $this->altlessFileReferenceRepository = $altlessFileReferenceRepository;
+    }
+
     /**
      * Initialize the ViewHelper arguments.
      */
@@ -159,7 +173,25 @@ class AltlessFileReferenceViewHelper extends AbstractTagBasedViewHelper
                 ],
             ]));
             $this->tag->addAttribute('record-edit-link-label', sprintf($this->getLanguageService()->sL('LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.editRecord.label'), $recordTableName, $recordUid));
-            if ($this->permissionService->checkNonExcludeFields('sys_file_reference', ['tx_mindfula11y_decorative'])) {
+            // Mirrors the DataHandler guard's own condition. The toggle itself
+            // always needs its grant; the BLANKED_FIELDS grants are only
+            // required to turn decorative ON, because only that direction
+            // blanks them. Demanding them unconditionally would hide the
+            // control from a user the guard would happily let switch it OFF —
+            // stranding a wrongly-decorative image with a permanent alt="".
+            $decorativeEditable = $this->permissionService->checkNonExcludeFields(
+                'sys_file_reference',
+                [DecorativeFileReferenceDataHandlerGuard::FIELD_NAME],
+            ) && (
+                (bool)$fileReference->getOriginalResource()->getReferenceProperty(
+                    DecorativeFileReferenceDataHandlerGuard::FIELD_NAME
+                )
+                || $this->permissionService->checkNonExcludeFields(
+                    'sys_file_reference',
+                    DecorativeFileReferenceDataHandlerGuard::BLANKED_FIELDS,
+                )
+            );
+            if ($decorativeEditable) {
                 $this->tag->addAttribute('decorative-editable', true);
             }
             if (
@@ -176,7 +208,7 @@ class AltlessFileReferenceViewHelper extends AbstractTagBasedViewHelper
         }
 
         $this->tag->addAttribute('uid', $fileReference->getUid());
-        if ((bool)$fileReference->getOriginalResource()->getReferenceProperty('tx_mindfula11y_decorative')) {
+        if ((bool)$fileReference->getOriginalResource()->getReferenceProperty(DecorativeFileReferenceDataHandlerGuard::FIELD_NAME)) {
             $this->tag->addAttribute('decorative', true);
         }
         $alternative = $fileReference->getOriginalResource()->getReferenceProperty('alternative');
@@ -189,7 +221,18 @@ class AltlessFileReferenceViewHelper extends AbstractTagBasedViewHelper
         }
 
         if ($this->moduleSettingsService->canReadFileMetadataAlternative()) {
-            $fallbackAlternative = $fileReference->getOriginalResource()->getOriginalFile()->getProperty('alternative');
+            // Deliberately NOT the file's own metadata property: FAL resolves it
+            // through WorkspaceRestriction, which yields the live row for a file
+            // whose metadata was edited in a workspace, and core's overlay
+            // listener for FAL metadata runs in the frontend only. Reading it
+            // here would advertise live text as inherited even where the listing
+            // already counted the reference as missing because the draft
+            // cleared or deleted that metadata.
+            $fallbackAlternative = $this->altlessFileReferenceRepository->findEffectiveMetaDataAlternative(
+                (int)$fileReference->getOriginalResource()->getOriginalFile()->getUid(),
+                $this->getBackendUser()?->workspace ?? 0,
+                (int)$fileReference->getOriginalResource()->getReferenceProperty('sys_language_uid'),
+            );
             if (is_string($fallbackAlternative) && '' !== $fallbackAlternative) {
                 $this->tag->addAttribute('fallback-alternative', $fallbackAlternative);
             }
@@ -253,5 +296,10 @@ class AltlessFileReferenceViewHelper extends AbstractTagBasedViewHelper
     protected function getLanguageService(): LanguageService
     {
         return $GLOBALS['LANG'];
+    }
+
+    protected function getBackendUser(): ?BackendUserAuthentication
+    {
+        return $GLOBALS['BE_USER'] ?? null;
     }
 }

@@ -69,10 +69,39 @@ final class AltTextGeneratorServiceTest extends TestCase
         $service = new AltTextGeneratorService(
             new OpenAIService($extensionConfiguration, $requestFactory, $this->createMock(LoggerInterface::class)),
             $extensionConfiguration,
+            $this->createMock(LoggerInterface::class),
         );
 
         self::assertSame('Generated alt', $service->generate($file));
         $requestBody = json_decode((string)($capturedOptions['body'] ?? ''), true);
         self::assertSame('auto', $requestBody['input'][0]['content'][0]['detail'] ?? null);
+    }
+
+    /**
+     * The image is read into memory and base64 inflates it by a further ~4/3,
+     * so an oversized file must be rejected BEFORE getContents() runs — the
+     * check exists to bound memory, and reading first would defeat it.
+     */
+    #[Test]
+    public function oversizedImageIsRejectedWithoutReadingTheFile(): void
+    {
+        $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+        $extensionConfiguration->method('get')->willReturn([]);
+
+        $requestFactory = $this->createMock(RequestFactory::class);
+        $requestFactory->expects(self::never())->method('request');
+
+        $file = $this->createMock(FileInterface::class);
+        $file->method('getSize')->willReturn(21 * 1024 * 1024);
+        $file->method('getIdentifier')->willReturn('/huge.png');
+        $file->expects(self::never())->method('getContents');
+
+        $service = new AltTextGeneratorService(
+            new OpenAIService($extensionConfiguration, $requestFactory, $this->createMock(LoggerInterface::class)),
+            $extensionConfiguration,
+            $this->createMock(LoggerInterface::class),
+        );
+
+        self::assertNull($service->generate($file));
     }
 }

@@ -204,6 +204,10 @@ final readonly class StructureAnalysisEnrichmentAjaxController
      * Custom TCA columns are intentionally supported: integrators may configure
      * their own heading or landmark annotation fields.
      *
+     * The TCA lookup IS the validation — a name that does not resolve to a
+     * defined column is dropped whatever it contains, so nothing reaches a
+     * query or an identifier position on the strength of its characters alone.
+     *
      * @param array<array-key, mixed> $references
      * @return array<string, list<string>> Keyed by `<tableName>:<uid>`.
      */
@@ -217,9 +221,7 @@ final readonly class StructureAnalysisEnrichmentAjaxController
             $tableName = is_string($reference['tableName'] ?? null) ? $reference['tableName'] : '';
             $columnName = is_string($reference['columnName'] ?? null) ? $reference['columnName'] : '';
             $uid = (int)($reference['uid'] ?? 0);
-            if (!preg_match('/^[a-zA-Z0-9_]+$/', $tableName)
-                || !preg_match('/^[a-zA-Z0-9_]+$/', $columnName)
-                || $uid <= 0
+            if ($uid <= 0
                 || !isset($GLOBALS['TCA'][$tableName]['columns'][$columnName])
             ) {
                 continue;

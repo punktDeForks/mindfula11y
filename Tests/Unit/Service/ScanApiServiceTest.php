@@ -68,4 +68,95 @@ final class ScanApiServiceTest extends TestCase
         // "\xB1\x31" is malformed UTF-8 — json_encode() cannot represent it.
         self::assertNull($service->createScan(['https://example.com/'], scanOptions: ['auth' => "\xB1\x31"]));
     }
+
+    /**
+     * The scanner's problem detail is third-party text describing a request
+     * that carried this installation's API token and the site's Basic Auth
+     * credentials. An upstream that echoes its input back in a validation error
+     * would otherwise hand those to any editor able to induce one, so no value
+     * this installation sent may survive into the client-facing message. The
+     * unredacted detail still reaches the server-side log.
+     */
+    #[Test]
+    public function reflectedCredentialsAreRedactedFromTheClientFacingDetail(): void
+    {
+        $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+        $extensionConfiguration->method('get')->with('mindfula11y')->willReturn([
+            'scannerApiUrl' => 'https://scanner.example',
+            'scannerApiToken' => 'super-secret-api-token',
+        ]);
+
+        $reflected = 'Invalid request: {"basicAuth":{"username":"site-user","password":"site-password-1234"},'
+            . '"token":"super-secret-api-token"}';
+        $stream = $this->createMock(\Psr\Http\Message\StreamInterface::class);
+        $stream->method('__toString')->willReturn(json_encode([
+            'title' => 'Bad Request',
+            'detail' => $reflected,
+        ], JSON_THROW_ON_ERROR));
+        $response = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+        $response->method('getStatusCode')->willReturn(400);
+        $response->method('getBody')->willReturn($stream);
+
+        $requestFactory = $this->createMock(RequestFactory::class);
+        $requestFactory->method('request')->willReturn($response);
+
+        $service = new ScanApiService(
+            $extensionConfiguration,
+            $requestFactory,
+            $this->createMock(LoggerInterface::class),
+        );
+
+        try {
+            $service->createScan(
+                ['https://example.com/'],
+                scanOptions: ['basicAuth' => ['username' => 'site-user', 'password' => 'site-password-1234']],
+            );
+            self::fail('the scanner rejection must surface as an exception');
+        } catch (\MindfulMarkup\MindfulA11y\Exception\ScanApiRequestException $exception) {
+            $detail = $exception->getProblemDetail();
+
+            self::assertStringNotContainsString('super-secret-api-token', $detail, 'API token must not be echoed back');
+            self::assertStringNotContainsString('site-password-1234', $detail, 'Basic Auth password must not be echoed back');
+            self::assertStringNotContainsString('site-user', $detail, 'Basic Auth username must not be echoed back');
+            self::assertStringContainsString('[redacted]', $detail, 'the message is redacted, not discarded');
+            self::assertStringContainsString('Invalid request', $detail, 'the actionable part survives');
+        }
+    }
+
+    /**
+     * An unbounded upstream string would turn a backend error message into a
+     * channel for bulk third-party output.
+     */
+    #[Test]
+    public function clientFacingDetailIsLengthCapped(): void
+    {
+        $extensionConfiguration = $this->createMock(ExtensionConfiguration::class);
+        $extensionConfiguration->method('get')->with('mindfula11y')->willReturn([
+            'scannerApiUrl' => 'https://scanner.example',
+        ]);
+
+        $stream = $this->createMock(\Psr\Http\Message\StreamInterface::class);
+        $stream->method('__toString')->willReturn(json_encode([
+            'detail' => str_repeat('A', 5000),
+        ], JSON_THROW_ON_ERROR));
+        $response = $this->createMock(\Psr\Http\Message\ResponseInterface::class);
+        $response->method('getStatusCode')->willReturn(400);
+        $response->method('getBody')->willReturn($stream);
+
+        $requestFactory = $this->createMock(RequestFactory::class);
+        $requestFactory->method('request')->willReturn($response);
+
+        $service = new ScanApiService(
+            $extensionConfiguration,
+            $requestFactory,
+            $this->createMock(LoggerInterface::class),
+        );
+
+        try {
+            $service->createScan(['https://example.com/']);
+            self::fail('the scanner rejection must surface as an exception');
+        } catch (\MindfulMarkup\MindfulA11y\Exception\ScanApiRequestException $exception) {
+            self::assertLessThanOrEqual(500, mb_strlen($exception->getProblemDetail()));
+        }
+    }
 }
