@@ -90,8 +90,14 @@ const analyzeHeadings = (doc, options = {}) => {
     const parent = parentStack.at(-1) ?? null;
     const skippedLevels = parent === null ? 0 : Math.max(0, level - parent.level - 1);
     const relation = extractRelation(element);
+    let hierarchyFinding = null;
+    if (skippedLevels > 0) {
+      hierarchyFinding = { key: HEADING_ERROR_KEYS.skippedLevel, severity: "moderate" };
+    } else if (parent === null && level > 2) {
+      hierarchyFinding = { key: HEADING_ERROR_KEYS.deepRootHeading, severity: "minor" };
+    }
     const relationTarget = relation === null ? void 0 : nodesByRelationId.get(relation.targetRelationId);
-    const attributedContainer = skippedLevels > 0 && relationTarget?.kind === "container" ? relationTarget : null;
+    const attributedContainer = hierarchyFinding !== null && relationTarget?.kind === "container" ? relationTarget : null;
     const node = {
       id: nodeId,
       documentOrder: index.get(element)?.documentOrder ?? 0,
@@ -118,12 +124,12 @@ const analyzeHeadings = (doc, options = {}) => {
     if (label === "") {
       collector.nodeError(node, HEADING_ERROR_KEYS.emptyHeading, "minor");
     }
-    if (attributedContainer !== null) {
-      if (!attributedContainer.errors.some((error) => error.key === HEADING_ERROR_KEYS.skippedLevel)) {
-        collector.nodeError(attributedContainer, HEADING_ERROR_KEYS.skippedLevel, "moderate");
+    if (hierarchyFinding !== null) {
+      const { key, severity } = hierarchyFinding;
+      const target = attributedContainer ?? node;
+      if (!target.errors.some((error) => error.key === key)) {
+        collector.nodeError(target, key, severity);
       }
-    } else if (skippedLevels > 0) {
-      collector.nodeError(node, HEADING_ERROR_KEYS.skippedLevel, "moderate");
     }
     if (parent === null) {
       rootNodes.push(node);

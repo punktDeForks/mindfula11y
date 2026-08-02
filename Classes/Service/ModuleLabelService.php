@@ -80,6 +80,8 @@ final readonly class ModuleLabelService
         'structure.headings.error.skippedLevel',
         'structure.headings.error.skippedLevel.description',
         'structure.headings.error.skippedLevel.inline',
+        'structure.headings.error.deepRootHeading',
+        'structure.headings.error.deepRootHeading.description',
         'general.error.loading',
         'general.error.loading.description',
         'structure.headings.noHeadings',

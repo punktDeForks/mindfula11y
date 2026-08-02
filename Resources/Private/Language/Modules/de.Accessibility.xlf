@@ -457,6 +457,14 @@
                 <source>Missing heading level %d — the following heading skips a level.</source>
                 <target>Fehlende Überschriftenebene %d — die folgende Überschrift überspringt eine Ebene.</target>
             </trans-unit>
+            <trans-unit id="structure.headings.error.deepRootHeading" resname="structure.headings.error.deepRootHeading">
+                <source>Heading structure opens deeper than &lt;h2&gt;.</source>
+                <target>Überschriftenstruktur beginnt tiefer als &lt;h2&gt;.</target>
+            </trans-unit>
+            <trans-unit id="structure.headings.error.deepRootHeading.description" resname="structure.headings.error.deepRootHeading.description">
+                <source>Headings placed before the page's main &lt;h1&gt; label surrounding regions such as the navigation or a sidebar and should be &lt;h2&gt; headings. Starting with a deeper level makes the heading hierarchy harder for screen reader users to follow.</source>
+                <target>Überschriften vor der Haupt-&lt;h1&gt; der Seite benennen umgebende Bereiche wie die Navigation oder eine Seitenleiste und sollten &lt;h2&gt;-Überschriften sein. Ein tieferer Einstieg macht die Überschriftenhierarchie für Screenreader-Nutzer schwerer nachvollziehbar.</target>
+            </trans-unit>
             <trans-unit id="structure.headings.error.missingH1" resname="structure.headings.error.missingH1">
                 <source>Missing &lt;h1&gt; heading.</source>
                 <target>Fehlende &lt;h1&gt;-Überschrift.</target>

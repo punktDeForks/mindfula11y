@@ -374,6 +374,14 @@
                 resname="structure.headings.error.skippedLevel.inline">
                 <source>Missing heading level %d — the following heading skips a level.</source>
             </trans-unit>
+            <trans-unit id="structure.headings.error.deepRootHeading"
+                resname="structure.headings.error.deepRootHeading">
+                <source>Heading structure opens deeper than &lt;h2&gt;.</source>
+            </trans-unit>
+            <trans-unit id="structure.headings.error.deepRootHeading.description"
+                resname="structure.headings.error.deepRootHeading.description">
+                <source>Headings placed before the page's main &lt;h1&gt; label surrounding regions such as the navigation or a sidebar and should be &lt;h2&gt; headings. Starting with a deeper level makes the heading hierarchy harder for screen reader users to follow.</source>
+            </trans-unit>
             <trans-unit id="structure.headings.error.missingH1"
                 resname="structure.headings.error.missingH1">
                 <source>Missing &lt;h1&gt; heading.</source>

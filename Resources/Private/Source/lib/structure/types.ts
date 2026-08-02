@@ -28,6 +28,7 @@ export const HEADING_ERROR_KEYS = {
     multipleH1: 'mindfula11y.structure.headings.error.multipleH1',
     emptyHeading: 'mindfula11y.structure.headings.error.emptyHeadings',
     skippedLevel: 'mindfula11y.structure.headings.error.skippedLevel',
+    deepRootHeading: 'mindfula11y.structure.headings.error.deepRootHeading',
 } as const;
 
 /** Responsive frontend render used by the structure analyzers. */

@@ -26,7 +26,13 @@
 import { createErrorCollector } from './analysis.js';
 import { extractChildTypeRecord, extractRecord, indexStructureNodes } from './annotations.js';
 import { isElementExposed, resolveExposure } from './element-exposure.js';
-import type { HeadingAnalysis, HeadingNode, HeadingRelation, StructureAnalysisOptions } from './types.js';
+import type {
+    HeadingAnalysis,
+    HeadingNode,
+    HeadingRelation,
+    StructureAnalysisOptions,
+    StructureError,
+} from './types.js';
 import { HEADING_ERROR_KEYS } from './types.js';
 
 const CONTAINER_SELECTOR = '[data-mindfula11y-container]';
@@ -49,21 +55,27 @@ const extractRelation = (element: HTMLElement): HeadingRelation | null => {
  * Analyzes exposed h1–h6 elements: builds the level-nested tree and detects missing H1
  * (page-level, moderate — axe `page-has-heading-one`), multiple H1 (minor per
  * instance — not an axe rule, pure best-practice advice), empty headings
- * (minor — axe `empty-heading`) and skipped levels (moderate per offending
+ * (minor — axe `empty-heading`), skipped levels (moderate per offending
  * heading — axe `heading-order`; `skippedLevels` counts the gap for
- * placeholder rendering).
+ * placeholder rendering) and root headings deeper than H2 (minor per
+ * heading — no axe equivalent).
  * Besides headings, the tree carries hidden container markers and rendered
  * demoted tags (`data-mindfula11y-demoted`, p/div): both attach to the current
  * heading context without opening a level or joining any heading check, so
  * every element wired to a heading ViewHelper keeps exactly one row.
  * A skip is an increase of more than one against the nearest shallower
  * predecessor; root headings — including those before the first H1 — never
- * skip (axe-core heading-order semantics).
- * Exception: a skip whose heading derives from a hidden container that has its
- * own row (relation target is a `kind: 'container'` node) is reported ONCE on
- * that container node instead — the row already displays the unrendered level
- * and hosts the child-type select that closes the gap, so per-heading
- * placeholders would duplicate and visually contradict it.
+ * skip (axe-core heading-order semantics). A root heading deeper than H2
+ * instead gets a minor deep-root advisory (stricter than axe, which passes
+ * any first heading): the W3C-sanctioned level for pre-H1 region labels
+ * (nav, sidebar) is H2, so the outline must not open mid-hierarchy. An H2
+ * before the H1 therefore stays finding-free.
+ * Exception: a hierarchy finding (skip or deep root) whose heading derives from
+ * a hidden container that has its own row (relation target is a
+ * `kind: 'container'` node) is reported ONCE on that container node instead —
+ * the row already displays the unrendered level and hosts the child-type
+ * select that closes the gap, so per-heading placeholders would duplicate and
+ * visually contradict it.
  */
 export const analyzeHeadings = (doc: Document, options: StructureAnalysisOptions = {}): HeadingAnalysis => {
     const viewport = options.viewport ?? 'desktop';
@@ -145,7 +157,8 @@ export const analyzeHeadings = (doc: Document, options: StructureAnalysisOptions
 
     exposed.forEach((element) => {
         // Containers never open a level or join an error check of their own;
-        // skips of their derived headings are attributed to them below.
+        // hierarchy findings of their derived headings are attributed to them
+        // below.
         if (element.matches(CONTAINER_SELECTOR)) {
             const ownType = /^h([1-6])$/.exec(element.dataset.mindfula11yContainer ?? '');
             attachNonHeadingNode(
@@ -185,11 +198,24 @@ export const analyzeHeadings = (doc: Document, options: StructureAnalysisOptions
         const skippedLevels = parent === null ? 0 : Math.max(0, level - parent.level - 1);
         const relation = extractRelation(element);
 
-        // A skip deriving from a hidden container with its own row belongs to
-        // that row (see the function docblock): suppress the per-heading
-        // placeholder and report once on the container instead.
+        // At most one hierarchy finding applies per heading — a root heading
+        // (parent === null) forces skippedLevels to 0, so the two conditions
+        // are mutually exclusive (which is also what keeps the skippedLevels
+        // zeroing below a no-op for the deep-root branch). Severities and
+        // rationale: see the function docblock.
+        let hierarchyFinding: Pick<StructureError, 'key' | 'severity'> | null = null;
+        if (skippedLevels > 0) {
+            hierarchyFinding = { key: HEADING_ERROR_KEYS.skippedLevel, severity: 'moderate' };
+        } else if (parent === null && level > 2) {
+            hierarchyFinding = { key: HEADING_ERROR_KEYS.deepRootHeading, severity: 'minor' };
+        }
+
+        // A hierarchy finding deriving from a hidden container with its own
+        // row belongs to that row (see the function docblock): suppress the
+        // per-heading cue and report once on the container instead.
         const relationTarget = relation === null ? undefined : nodesByRelationId.get(relation.targetRelationId);
-        const attributedContainer = skippedLevels > 0 && relationTarget?.kind === 'container' ? relationTarget : null;
+        const attributedContainer =
+            hierarchyFinding !== null && relationTarget?.kind === 'container' ? relationTarget : null;
 
         const node: HeadingNode = {
             id: nodeId,
@@ -218,12 +244,15 @@ export const analyzeHeadings = (doc: Document, options: StructureAnalysisOptions
         if (label === '') {
             collector.nodeError(node, HEADING_ERROR_KEYS.emptyHeading, 'minor');
         }
-        if (attributedContainer !== null) {
-            if (!attributedContainer.errors.some((error) => error.key === HEADING_ERROR_KEYS.skippedLevel)) {
-                collector.nodeError(attributedContainer, HEADING_ERROR_KEYS.skippedLevel, 'moderate');
+        if (hierarchyFinding !== null) {
+            // The heading's own node is freshly built, so the once-per-row
+            // guard only ever bites on a container collecting several
+            // derived headings.
+            const { key, severity } = hierarchyFinding;
+            const target = attributedContainer ?? node;
+            if (!target.errors.some((error) => error.key === key)) {
+                collector.nodeError(target, key, severity);
             }
-        } else if (skippedLevels > 0) {
-            collector.nodeError(node, HEADING_ERROR_KEYS.skippedLevel, 'moderate');
         }
 
         if (parent === null) {

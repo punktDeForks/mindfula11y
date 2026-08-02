@@ -227,8 +227,8 @@ let HeadingStructure = class extends StructureView {
    * finding renders in-row except an ordinary heading's skipped level: its
    * missing-level placeholder row (see renderPlaceholderItem()) already IS the finding,
    * placed where the missing level belongs, so an in-row chip would only
-   * duplicate it. Container rows keep their attributed skip in-row — they
-   * never render placeholders.
+   * duplicate it. Container rows keep their attributed hierarchy finding
+   * in-row — they never render placeholders.
    */
   inRowErrors(node) {
     if (node.kind === "container") {

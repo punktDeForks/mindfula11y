@@ -80,6 +80,11 @@ When your project templates use Mindful A11y heading/landmark output, the module
 - distinguish findings that occur in the mobile or desktop layout
 - show issues directly in the backend context
 
+Headings placed before the page's main `<h1>` label surrounding regions such as the navigation
+or a sidebar. Those region labels should be `<h2>` headings; if the structure opens deeper than
+that — for example with an `<h3>` and no `<h2>` before it — the module advises to raise the
+level.
+
 Headings inside a container element can derive their level from the container's
 **Headings inside this element** field. That field is edited on the container's own row in the heading
 tree — the select always shows the container's current setting — and changing it updates all
@@ -89,9 +94,9 @@ the page structure by using one level below the container's own heading. Choose 
 only when the preview shows that the automatic result is incorrect. A container without a heading of its own (for example a hidden
 header) still appears as a **Hidden container element** row so the field stays reachable. The headings derived
 from a container are shown read-only in the tree; each links back to its container's row. When a
-hidden container makes its child headings skip a level, the issue is shown once on the
-container's row — change its **Headings inside** setting there to close the gap — instead of as
-separate missing-level placeholders under every child.
+hidden container makes its child headings skip a level or open the structure too deep, the issue
+is shown once on the container's row — change its **Headings inside** setting there to correct
+the level — instead of as separate missing-level placeholders under every child.
 
 The checks use the page's rendered CSS at representative mobile and desktop sizes, including when a TYPO3 installation serves different site roots on different domains. Elements hidden from assistive technology in a layout do not affect that layout's results. JavaScript-generated headings and landmarks are not included.
 

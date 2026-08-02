@@ -123,6 +123,106 @@ describe('analyzeHeadings', () => {
         expect(analysis.errors.some((error) => error.key.endsWith('skippedLevel'))).toBe(false);
     });
 
+    it('accepts an h2 region label preceding the h1 without any finding', () => {
+        // W3C WAI page-structure tutorial's canonical outline: pre-h1 region
+        // labels (nav, sidebar) are h2 — never a finding.
+        document.body.innerHTML = `
+            <h2>Navigation</h2>
+            <h1>Title</h1>
+        `;
+
+        const analysis = analyzeHeadings(document);
+        expect(analysis.errors).toEqual([]);
+    });
+
+    it('accepts sub-headings nested under a pre-h1 region label (h2, h3, h1)', () => {
+        document.body.innerHTML = `
+            <h2>Navigation</h2>
+            <h3>Products</h3>
+            <h1>Title</h1>
+        `;
+
+        const analysis = analyzeHeadings(document);
+        expect(analysis.errors).toEqual([]);
+    });
+
+    it('still flags a genuine skip inside the pre-h1 region (h2, h4, h1)', () => {
+        document.body.innerHTML = `
+            <h2>Navigation</h2>
+            <h4>Products</h4>
+            <h1>Title</h1>
+        `;
+
+        const analysis = analyzeHeadings(document);
+        const skippedLevelErrors = analysis.errors.filter((error) => error.key.endsWith('skippedLevel'));
+        expect(skippedLevelErrors).toHaveLength(1);
+        expect(skippedLevelErrors[0]?.severity).toBe('moderate');
+        const h4Node = flatten(analysis.nodes).find((node) => node.label === 'Products');
+        expect(skippedLevelErrors[0]?.nodeId).toBe(h4Node?.id);
+        expect(analysis.errors.some((error) => error.key.endsWith('deepRootHeading'))).toBe(false);
+    });
+
+    it('advises on a root heading deeper than h2 opening the outline (h3 before the h1)', () => {
+        document.body.innerHTML = `
+            <h3>Quick links</h3>
+            <h1>Title</h1>
+        `;
+
+        const analysis = analyzeHeadings(document);
+        const advisories = analysis.errors.filter((error) => error.key.endsWith('deepRootHeading'));
+        expect(advisories).toHaveLength(1);
+        expect(advisories[0]?.severity).toBe('minor');
+        const h3Node = flatten(analysis.nodes).find((node) => node.label === 'Quick links');
+        expect(advisories[0]?.nodeId).toBe(h3Node?.id);
+        expect(h3Node?.skippedLevels).toBe(0);
+        expect(analysis.errors.some((error) => error.key.endsWith('skippedLevel'))).toBe(false);
+    });
+
+    it('advises once per deep root heading (h3, h3, h1)', () => {
+        document.body.innerHTML = `
+            <h3>Quick links</h3>
+            <h3>Search</h3>
+            <h1>Title</h1>
+        `;
+
+        const analysis = analyzeHeadings(document);
+        const advisories = analysis.errors.filter((error) => error.key.endsWith('deepRootHeading'));
+        expect(advisories).toHaveLength(2);
+        expect(new Set(advisories.map((error) => error.nodeId)).size).toBe(2);
+    });
+
+    it('combines missingH1 with the deep-root-heading advisory on a page opening at h3', () => {
+        document.body.innerHTML = `
+            <h3>Quick links</h3>
+        `;
+
+        const analysis = analyzeHeadings(document);
+        expect(analysis.errors.some((error) => error.key.endsWith('missingH1'))).toBe(true);
+        expect(analysis.errors.some((error) => error.key.endsWith('deepRootHeading'))).toBe(true);
+    });
+
+    it('attributes a deep root heading derived from a hidden container once to the container row', () => {
+        // Same attribution rule as skips: the container row already shows the
+        // unrendered level and hosts the child-type select that closes the gap.
+        document.body.innerHTML = `
+            <span hidden data-mindfula11y-container="h2" data-mindfula11y-relation-id="acc"></span>
+            <h3 data-mindfula11y-ancestor-id="acc">First child</h3>
+            <h3 data-mindfula11y-ancestor-id="acc">Second child</h3>
+            <h1>Title</h1>`;
+
+        const analysis = analyzeHeadings(document, { isExposed: () => true });
+
+        const all = flatten(analysis.nodes);
+        const container = all.find((node) => node.kind === 'container');
+        expect(container?.errors.map((error) => error.key)).toEqual([
+            'mindfula11y.structure.headings.error.deepRootHeading',
+        ]);
+        const advisories = analysis.errors.filter((error) => error.key.endsWith('deepRootHeading'));
+        expect(advisories).toHaveLength(1);
+        const headingChildren = all.filter((node) => node.kind === 'heading' && node.level === 3);
+        expect(headingChildren.flatMap((node) => node.errors)).toEqual([]);
+    });
+
     it('extracts ancestor/sibling relations and falls back to a rel:-prefixed id without record data', () => {
         document.body.innerHTML = `
             <h1 data-mindfula11y-relation-id="hero">Hero</h1>
