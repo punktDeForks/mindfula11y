@@ -251,6 +251,10 @@
                 <source>Missing alternative text</source>
                 <target>Fehlender Alternativtext</target>
             </trans-unit>
+            <trans-unit id="module.menu.features.interactiveLabels" resname="module.menu.features.interactiveLabels">
+                <source>Link and button labels</source>
+                <target>Link- und Button Beschriftungen</target>
+            </trans-unit>
             <trans-unit id="module.menu.features.scan" resname="module.menu.features.scan">
                 <source>Scanner</source>
                 <target>Scanner</target>

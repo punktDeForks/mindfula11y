@@ -17,6 +17,9 @@ mod {
         landmarkStructure {
             enable = 1
         }
+        interactiveLabels {
+            enable = 1
+        }
         scan {
             enable = 0
             autoCreate = 1
