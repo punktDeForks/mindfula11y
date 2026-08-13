@@ -29,6 +29,10 @@ services:
         event: 'TYPO3\CMS\Form\Event\BeforeRenderableIsRenderedEvent'
         method: '__invoke'
 
+  MindfulMarkup\MindfulA11y\Backend\FeatureRendererRegistry:
+    arguments:
+      $renderers: !tagged_iterator mindful_a11y.feature_renderer
+
   # AJAX route targets are resolved from the container by the backend
   # RouteDispatcher and therefore need to be public.
   MindfulMarkup\MindfulA11y\Controller\AltTextAjaxController:

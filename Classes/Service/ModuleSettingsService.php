@@ -136,6 +136,19 @@ final readonly class ModuleSettingsService
     }
 
     /**
+     * Check if the user has access to the interactive labels feature.
+     *
+     * @param array<string, mixed> $pageTsConfig
+     */
+    public function hasInteractiveLabelsAccess(array $pageTsConfig): bool
+    {
+        return (bool) (
+            $this->moduleTsConfig($pageTsConfig)
+            ['interactiveLabels']['enable']
+            ?? false
+        );
+    }
+    /**
      * Check if structure analysis may run on the page at all.
      *
      * One pipeline serves both structure views, so its trust boundaries — ticket
