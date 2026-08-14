@@ -37,23 +37,35 @@ final readonly class InteractiveLabelRuleProvider
 
     private function getLanguageCode(string $locale): string
     {
-        $locale = str_replace('_', '-', trim($locale));
+        $locale = str_replace(
+            '_',
+            '-',
+            trim($locale),
+        );
 
         $parts = explode('-', $locale);
 
-        return strtolower($parts[0] ?? '');
+        return strtolower(
+            $parts[0] ?? '',
+        );
     }
 
-    private function getRuleFile(string $languageCode): ?string
-    {
-        if ($languageCode === '') {
+    private function getRuleFile(
+        string $languageCode,
+    ): ?string {
+        $fileName = match ($languageCode) {
+            'de' => 'German.php',
+            'en' => 'English.php',
+            default => null,
+        };
+
+        if ($fileName === null) {
             return null;
         }
 
         $file = dirname(__DIR__, 2)
             . '/Configuration/InteractiveLabels/'
-            . $languageCode
-            . '.php';
+            . $fileName;
 
         return is_file($file)
             ? $file

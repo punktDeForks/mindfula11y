@@ -25,7 +25,7 @@ namespace MindfulMarkup\MindfulA11y\Controller;
 
 use InvalidArgumentException;
 use MindfulMarkup\MindfulA11y\Backend\DocHeaderMenuBuilder;
-use MindfulMarkup\MindfulA11y\Backend\InteractiveLablesFeatureRenderer;
+use MindfulMarkup\MindfulA11y\Backend\InteractiveLabelsFeatureRenderer;
 use MindfulMarkup\MindfulA11y\Backend\MissingAltTextFeatureRenderer;
 use MindfulMarkup\MindfulA11y\Backend\ModuleContext;
 use MindfulMarkup\MindfulA11y\Backend\ModuleNoticeTrait;
@@ -82,7 +82,7 @@ final readonly class AccessibilityModuleController
         private ScanFeatureRenderer              $scanFeatureRenderer,
         private BackendUserProvider              $backendUserProvider,
         private BackendPageLanguageService       $backendPageLanguageService,
-        private InteractiveLablesFeatureRenderer $interactiveLabelsFeatureRenderer,
+        private InteractiveLabelsFeatureRenderer $interactiveLabelsFeatureRenderer,
     ) {}
 
     /**

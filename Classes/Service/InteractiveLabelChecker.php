@@ -25,14 +25,18 @@ final readonly class InteractiveLabelChecker
         InteractiveLabelType $type,
         array $rules,
     ): ?array {
-        $normalizedValue = $this->normalize($value);
+        $value = trim($value);
 
-        if ($normalizedValue === '') {
+        if ($value === '') {
             return null;
         }
 
+        $normalizedValue = $this->normalize($value);
+
         foreach ($rules as $rule) {
-            $term = (string)($rule['term'] ?? '');
+            $term = trim(
+                (string)($rule['term'] ?? ''),
+            );
 
             if ($term === '') {
                 continue;

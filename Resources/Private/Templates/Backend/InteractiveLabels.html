@@ -5,12 +5,71 @@
 <f:layout name="Module" />
 
 <f:section name="Content">
-    <f:section>
-        <h1>Link and button labels</h1>
+    <section>
+        <h1 class="mb-3">
+            <f:translate
+                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText"
+            />
+        </h1>
 
-        <p>
-            Test: New Feature is working.
-        </p>
-    </f:section>
+        <h3>Diagnostics</h3>
+        <f:debug>{diagnostics}</f:debug>
+        <h3>Gefundene Datenbankeinträge</h3>
+        <f:debug>{rawRecords}</f:debug>
+
+        <f:if condition="{findings -> f:count()} > 0">
+            <f:then>
+
+                <ul class="list-unstyled mb-0" role="list">
+                    <f:for
+                        each="{findings}"
+                        as="finding"
+                        iteration="iterator"
+                    >
+                        <li class="{f:if(condition: iterator.isLast, else: 'mb-3')}">
+
+                            <div class="border rounded p-3">
+                                <strong>
+                                    {finding.value}
+                                </strong>
+
+                                <div class="mt-2">
+                                    Type:
+                                    {finding.type.value}
+                                </div>
+
+                                <div>
+                                    WCAG:
+                                    {finding.wcagCriterion}
+                                    ({finding.wcagLevel})
+                                </div>
+
+                                <div>
+                                    Record:
+                                    {finding.table}
+                                    #{finding.uid}
+                                </div>
+
+                                <div>
+                                    Field:
+                                    {finding.field}
+                                </div>
+                            </div>
+
+                        </li>
+                    </f:for>
+                </ul>
+
+            </f:then>
+
+            <f:else>
+                <mindfula11y-notice state="success">
+                        <span>
+                            No potentially ambiguous link or button labels found.
+                        </span>
+                </mindfula11y-notice>
+            </f:else>
+        </f:if>
+    </section>
 </f:section>
 </html>

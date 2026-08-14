@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Service;
 
+use MindfulMarkup\MindfulA11y\Enum\InteractiveLabelType;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Site\SiteFinder;
@@ -148,6 +149,55 @@ final readonly class ModuleSettingsService
             ?? false
         );
     }
+
+/**
+ * Get configured database fields containing interactive labels.
+ *
+ * @param array<string, mixed> $pageTsConfig
+ *
+ * @return array<string, array<string, string[]>>
+ */
+public function getInteractiveLabelFields(
+    array $pageTsConfig,
+): array {
+    $configuration = $this->moduleTsConfig($pageTsConfig)
+    ['interactiveLabels']['fields']
+        ?? [];
+
+    if (!is_array($configuration)) {
+        return [];
+    }
+
+    $result = [];
+
+    foreach (InteractiveLabelType::cases() as $type) {
+        $tables = $configuration[$type->value] ?? [];
+
+        if (!is_array($tables)) {
+            continue;
+        }
+
+        foreach ($tables as $table => $fields) {
+            if (!is_string($table) || $table === '') {
+                continue;
+            }
+
+            $fieldNames = GeneralUtility::trimExplode(
+                ',',
+                (string)$fields,
+                true,
+            );
+
+            if ($fieldNames === []) {
+                continue;
+            }
+
+            $result[$type->value][$table] = $fieldNames;
+        }
+    }
+
+    return $result;
+}
     /**
      * Check if structure analysis may run on the page at all.
      *
