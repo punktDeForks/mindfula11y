@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Backend;
 
+use MindfulMarkup\MindfulA11y\Service\BackendPageLanguageService;
+use TYPO3\CMS\Core\Site\Entity\SiteInterface;
 use MindfulMarkup\MindfulA11y\Enum\InteractiveLabelType;
 use MindfulMarkup\MindfulA11y\Service\InteractiveLabelFinderService;
 use MindfulMarkup\MindfulA11y\Service\ModuleSettingsService;
@@ -19,9 +21,33 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
         private ModuleSettingsService $moduleSettingsService,
         private InteractiveLabelRuleProvider $ruleProvider,
         private InteractiveLabelChecker $checker,
+        private BackendPageLanguageService $backendPageLanguageService,
     ) {
     }
+    private function resolveLocale(ModuleContext $context): string
+    {
+        $site = $context->request->getAttribute('site');
 
+        if (!$site instanceof SiteInterface) {
+            return 'en';
+        }
+
+        $languages = $this->backendPageLanguageService
+            ->getSelectableLanguages(
+                $site,
+                $context->pageId,
+            );
+
+        foreach ($languages as $language) {
+            if ($language->getLanguageId() !== $context->languageId) {
+                continue;
+            }
+
+            return $language->getLocale()->getName();
+        }
+
+        return 'en';
+    }
     public function render(
         ModuleContext $context,
     ): ResponseInterface {
@@ -59,8 +85,9 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
             $tableFields = $fieldsConfig[$type->value] ?? [];
 
             foreach ($tableFields as $table => $fields) {
-                $typeFindings = $this->finderService->find(
+                $currentFindings = $this->finderService->find(
                     $context->pageId,
+                    $context->languageId,
                     $locale,
                     $table,
                     $fields,
@@ -69,7 +96,7 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
 
                 $findings = [
                     ...$findings,
-                    ...$typeFindings,
+                    ...$currentFindings,
                 ];
             }
         }
@@ -79,30 +106,7 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
             $findings,
         );
 
-        $diagnostics = [
-            'pageTsConfig' => $pageTsConfig !== [],
-            'mod' => isset($pageTsConfig['mod']),
-            'mindfulA11y' => isset($pageTsConfig['mod']['mindfula11y_accessibility']),
-            'interactiveLabels' => isset(
-                $pageTsConfig['mod']['mindfula11y_accessibility']['interactiveLabels']
-            ),
-            'fields' => isset(
-                $pageTsConfig['mod']['mindfula11y_accessibility']['interactiveLabels']['fields']
-            ),
-            'parsedFieldTypes' => count($fieldsConfig),
-            'localeResolved' => $locale !== '',
-            'germanButtonRuleCount' => count($testRules),
-            'weiterRecognized' => $testIssue !== null,
-            'testFieldsLoaded' => (
-                    $pageTsConfig['mod']
-                    ['mindfula11y_accessibility']
-                    ['interactiveLabels']
-                    ['testFieldsLoaded']
-                    ?? false
-                ) == 1,];
-
         $context->moduleTemplate->assignMultiple([
-            'diagnostics' => $diagnostics,
             'pageTsConfigDebug' => $pageTsConfig,
             'fieldsConfig' => $fieldsConfig,
             'interactiveLabelLocale' => $locale,
@@ -112,18 +116,5 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
         return $context->moduleTemplate->renderResponse(
             'Backend/InteractiveLabels',
         );
-    }
-
-    private function resolveLocale(
-        ModuleContext $context,
-    ): string {
-        $siteLanguage =
-            $context->request->getAttribute('language');
-
-        if ($siteLanguage instanceof SiteLanguage) {
-            return $siteLanguage->getLocale()->getName();
-        }
-
-        return 'en';
     }
 }

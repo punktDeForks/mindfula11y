@@ -143,11 +143,7 @@ final readonly class ModuleSettingsService
      */
     public function hasInteractiveLabelsAccess(array $pageTsConfig): bool
     {
-        return (bool) (
-            $this->moduleTsConfig($pageTsConfig)
-            ['interactiveLabels']['enable']
-            ?? false
-        );
+        return (bool) ($this->moduleTsConfig($pageTsConfig)['interactiveLabels']['enable'] ?? false);
     }
 
 /**

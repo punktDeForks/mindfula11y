@@ -24,28 +24,21 @@ final readonly class InteractiveLabelFinderService
      */
     public function find(
         int $pageId,
+        int $languageId,
         string $locale,
         string $table,
         array $fields,
         InteractiveLabelType $type,
     ): array {
-        if ($table === '' || $fields === []) {
-            return [];
-        }
-
-        $rules = $this->ruleProvider->getRulesForType(
-            $locale,
-            $type,
-        );
-
-        if ($rules === []) {
-            return [];
-        }
-
         $records = $this->repository->findByPage(
             $table,
             $fields,
             $pageId,
+        );
+
+        $rules = $this->ruleProvider->getRulesForType(
+            $locale,
+            $type,
         );
 
         $findings = [];
@@ -73,6 +66,7 @@ final readonly class InteractiveLabelFinderService
                 $findings[] = [
                     'table' => $table,
                     'uid' => (int)($record['uid'] ?? 0),
+                    'pid' => (int)($record['pid'] ?? 0),
                     'field' => $field,
                     ...$issue,
                 ];
