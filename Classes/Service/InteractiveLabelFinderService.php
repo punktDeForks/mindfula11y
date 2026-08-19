@@ -9,6 +9,8 @@ use MindfulMarkup\MindfulA11y\Enum\InteractiveLabelType;
 
 final readonly class InteractiveLabelFinderService
 {
+    private const TARGET_FIELD = 'button_link';
+
     public function __construct(
         private InteractiveLabelRepository $repository,
         private InteractiveLabelRuleProvider $ruleProvider,
@@ -16,8 +18,13 @@ final readonly class InteractiveLabelFinderService
     ) {
     }
 
-
     /**
+     * Returns all interactive labels found on the page.
+     *
+     * A label does not need to have a single-value issue. This is important
+     * because page-wide rules such as repeated labels and identical labels
+     * with different targets need to see all labels.
+     *
      * @param string[] $fields
      *
      * @return array<int, array<string, mixed>>
@@ -30,20 +37,27 @@ final readonly class InteractiveLabelFinderService
         array $fields,
         InteractiveLabelType $type,
     ): array {
+        if ($table === '' || $fields === []) {
+            return [];
+        }
+
+        $rules = $this->ruleProvider->getRules($locale);
+
         $records = $this->repository->findByPage(
             $table,
             $fields,
             $pageId,
+            $languageId,
+            self::TARGET_FIELD,
         );
 
-        $rules = $this->ruleProvider->getRulesForType(
-            $locale,
-            $type,
-        );
-
-        $findings = [];
+        $labels = [];
 
         foreach ($records as $record) {
+            $target = trim(
+                (string)($record[self::TARGET_FIELD] ?? ''),
+            );
+
             foreach ($fields as $field) {
                 $value = trim(
                     (string)($record[$field] ?? ''),
@@ -53,37 +67,43 @@ final readonly class InteractiveLabelFinderService
                     continue;
                 }
 
-                $issue = $this->checker->check(
-                    $value,
-                    $type,
-                    $rules,
-                );
+                $issue = null;
 
-                if ($issue === null) {
-                    continue;
+                if ($rules !== []) {
+                    $issue = $this->checker->check(
+                        $value,
+                        $type,
+                        $rules,
+                    );
                 }
 
-                $findings[] = [
+                $label = [
                     'table' => $table,
                     'uid' => (int)($record['uid'] ?? 0),
-                    'pid' => (int)($record['pid'] ?? 0),
                     'field' => $field,
-                    ...$issue,
+                    'value' => $value,
+                    'type' => $type,
+                    'target' => $target,
+
+                    // Tells the aggregator whether the normal
+                    // per-label checker already found something.
+                    'hasSingleIssue' => $issue !== null,
                 ];
+
+                if ($issue !== null) {
+                    $label = [
+                        ...$label,
+                        ...$issue,
+                    ];
+                }
+
+                // IMPORTANT:
+                // Do not continue when $issue === null.
+                // The aggregator must also see valid-looking labels.
+                $labels[] = $label;
             }
         }
 
-        return $findings;
-    }
-    public function diagnose(
-        int $pageId,
-        string $table,
-        array $fields,
-    ): array {
-        return $this->repository->diagnose(
-            $table,
-            $fields,
-            $pageId,
-        );
+        return $labels;
     }
 }

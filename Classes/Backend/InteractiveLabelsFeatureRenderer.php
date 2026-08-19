@@ -13,6 +13,8 @@ use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use MindfulMarkup\MindfulA11y\Service\InteractiveLabelChecker;
 use MindfulMarkup\MindfulA11y\Service\InteractiveLabelRuleProvider;
+use MindfulMarkup\MindfulA11y\Service\InteractiveLabelAggregator;
+use TYPO3\CMS\Core\Page\PageRenderer;
 
 final readonly class InteractiveLabelsFeatureRenderer implements FeatureRendererInterface
 {
@@ -22,6 +24,8 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
         private InteractiveLabelRuleProvider $ruleProvider,
         private InteractiveLabelChecker $checker,
         private BackendPageLanguageService $backendPageLanguageService,
+        private InteractiveLabelAggregator $aggregator,
+        private PageRenderer $pageRenderer,
     ) {
     }
     private function resolveLocale(ModuleContext $context): string
@@ -51,9 +55,8 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
     public function render(
         ModuleContext $context,
     ): ResponseInterface {
-        $testRules = $this->ruleProvider->getRulesForType(
+        $testRules = $this->ruleProvider->getRules(
             'de-DE',
-            InteractiveLabelType::BUTTON,
         );
 
         $testIssue = $this->checker->check(
@@ -79,13 +82,13 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
 
         $locale = $this->resolveLocale($context);
 
-        $findings = [];
+        $labels = [];
 
         foreach (InteractiveLabelType::cases() as $type) {
             $tableFields = $fieldsConfig[$type->value] ?? [];
 
             foreach ($tableFields as $table => $fields) {
-                $currentFindings = $this->finderService->find(
+                $currentLabels = $this->finderService->find(
                     $context->pageId,
                     $context->languageId,
                     $locale,
@@ -94,17 +97,14 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
                     $type,
                 );
 
-                $findings = [
-                    ...$findings,
-                    ...$currentFindings,
+                $labels = [
+                    ...$labels,
+                    ...$currentLabels,
                 ];
             }
         }
 
-        $context->moduleTemplate->assign(
-            'findings',
-            $findings,
-        );
+        $findings = $this->aggregator->annotate($labels);
 
         $context->moduleTemplate->assignMultiple([
             'pageTsConfigDebug' => $pageTsConfig,
@@ -112,6 +112,18 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
             'interactiveLabelLocale' => $locale,
             'findings' => $findings,
         ]);
+
+        $this->pageRenderer->loadJavaScriptModule(
+            '@mindfulmarkup/mindfula11y/element/notice/notice.js',
+        );
+
+        $this->pageRenderer->addCssFile(
+            'EXT:mindfula11y/Resources/Public/Css/backend.css',
+        );
+
+        $this->pageRenderer->loadJavaScriptModule(
+            '@mindfulmarkup/mindfula11y/element/interactive-label/interactive-label-disclosure.js',
+        );
 
         return $context->moduleTemplate->renderResponse(
             'Backend/InteractiveLabels',
