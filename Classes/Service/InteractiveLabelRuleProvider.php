@@ -9,12 +9,17 @@ use MindfulMarkup\MindfulA11y\Enum\InteractiveLabelType;
 final readonly class InteractiveLabelRuleProvider
 {
     /**
-     * @return array<int, array<string, string>>
+     * Loads the full rule set for a locale. Rules are no longer split by
+     * element type at file level — the new format carries per-criterion
+     * `appliesTo` (['link'], ['button'], or both) inside each rule's `wcag`
+     * entries instead, so the same term list works for both element types
+     * and InteractiveLabelChecker resolves which criteria apply once it
+     * knows the actual element type of the record being checked.
+     *
+     * @return array<int, array<string, mixed>>
      */
-    public function getRulesForType(
-        string $locale,
-        InteractiveLabelType $type,
-    ): array {
+    public function getRules(string $locale): array
+    {
         $languageCode = $this->getLanguageCode($locale);
         $file = $this->getRuleFile($languageCode);
 
@@ -24,15 +29,7 @@ final readonly class InteractiveLabelRuleProvider
 
         $rules = require $file;
 
-        if (!is_array($rules)) {
-            return [];
-        }
-
-        $typeRules = $rules[$type->value] ?? [];
-
-        return is_array($typeRules)
-            ? $typeRules
-            : [];
+        return is_array($rules) ? $rules : [];
     }
 
     private function getLanguageCode(string $locale): string
