@@ -1,6 +1,11 @@
 <html xmlns:f="http://typo3.org/ns/TYPO3/CMS/Fluid/ViewHelpers" data-namespace-typo3-fluid="true">
 <f:if
-    condition="{hasMissingAltTextAccess} && {fileReferenceCount} > 0 || ({previewUrl} && ({hasHeadingStructureAccess} || {hasLandmarkStructureAccess})) || ({hasScanAccess} && {createScanDemand})">
+    condition="
+        ({hasMissingAltTextAccess} && {fileReferenceCount} > 0)
+        || ({previewUrl} && ({hasHeadingStructureAccess} || {hasLandmarkStructureAccess}))
+        || ({hasScanAccess} && {createScanDemand})
+        || {interactiveLabelCount} > 0
+    ">
     <section class="callout callout-notice">
         <div class="callout-content">
             <div class="callout-title">
@@ -34,6 +39,29 @@
                         </f:if>
                     </mindfula11y-notice>
                 </f:if>
+
+                <f:if condition="{interactiveLabelCount} > 0">
+
+                    <mindfula11y-notice
+                        state="warning"
+                        count="{interactiveLabelCount}"
+                    >
+        <span>
+            <f:translate
+                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:interactiveLabels"
+            />
+        </span>
+
+                        <f:if condition="{interactiveLabelUri}">
+                            <a slot="trailing" href="{interactiveLabelUri}">
+                                <f:translate
+                                    key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:general.viewDetails"
+                                />
+                            </a>
+                        </f:if>
+                    </mindfula11y-notice>
+                </f:if>
+
                 <f:if condition="{hasScanAccess} && ({scanId} || {createScanDemand})">
                     <mindfula11y-scan-issue-count create-scan-demand="{createScanDemand -> f:format.json()}"
                         scan-id="{scanId}" scan-uri="{scanUri}" {f:if(condition: autoCreateScan, then: 'auto-create-scan')}
@@ -41,10 +69,51 @@
                     </mindfula11y-scan-issue-count>
                 </f:if>
                 <f:if condition="{previewUrl} && ({hasHeadingStructureAccess} || {hasLandmarkStructureAccess})">
-                    <mindfula11y-structure page-id="{pageId}" language-id="{languageId}"
+                    <mindfula11y-structure page-id="{pageId}" language-id="{languageId}" interactive-label-count="{interactiveLabelCount}"  interactive-label-findings="{interactiveLabelFindings -> f:format.json()}"
                         {f:if(condition: collapsibleStructure, then: 'collapsible')}
                         {f:if(condition: hasHeadingStructureAccess, then: 'has-heading-structure-access')}
-                        {f:if(condition: hasLandmarkStructureAccess, then: 'has-landmark-structure-access')}>
+                        {f:if(condition: hasLandmarkStructureAccess, then: 'has-landmark-structure-access')}
+                        {f:if(condition: interactiveLabelCount, then: 'has-interactive-labels')}>
+
+                    <div
+                        slot="interactive-labels"
+                        class="d-flex flex-column gap-1 py-2"
+                    >
+                        <f:for each="{interactiveLabelFindings}" as="finding">
+                            <details class="border rounded bg-white">
+                                <summary class="px-3 py-2">
+                                    <span
+                                        style="
+                                            display:inline-flex;
+                                            align-items:center;
+                                            gap:.75rem;
+                                            width:calc(100% - 1.5rem);
+                                        "
+                                    >
+                                        <strong>
+                                            {finding.value}
+                                        </strong>
+
+                                        <span class="text-secondary">
+                                            <f:translate key="{finding.ruleTitleKey}" />
+                                        </span>
+
+                                        <span
+                                            class="badge text-bg-secondary rounded-pill"
+                                            style="margin-left:auto;"
+                                        >
+                                            {finding.overviewCount}
+                                        </span>
+                                    </span>
+                                </summary>
+
+                                <div class="border-top px-3 py-2 text-body-secondary">
+                                    <f:translate key="{finding.ruleDescriptionKey}" />
+                                </div>
+                            </details>
+
+                        </f:for>
+                    </div>
                     </mindfula11y-structure>
                 </f:if>
             </div>

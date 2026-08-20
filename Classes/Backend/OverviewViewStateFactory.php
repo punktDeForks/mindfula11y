@@ -144,6 +144,28 @@ final readonly class OverviewViewStateFactory
             $interactiveLabelUri = $this->buildFeatureUri(Feature::INTERACTIVE_LABELS, $pageId, $languageId);
         }
 
+        $groupedInteractiveLabelFindings = [];
+
+        foreach ($interactiveLabelFindings as $finding) {
+            $value = trim((string)($finding['value'] ?? ''));
+            $rule = (string)($finding['rule'] ?? '');
+
+            $key = mb_strtolower($value) . '|' . $rule;
+
+            if (!isset($groupedInteractiveLabelFindings[$key])) {
+                $groupedInteractiveLabelFindings[$key] = [
+                    ...$finding,
+                    'overviewCount' => 0,
+                ];
+            }
+
+            $groupedInteractiveLabelFindings[$key]['overviewCount']++;
+        }
+
+        $interactiveLabelOverviewFindings = array_values(
+            $groupedInteractiveLabelFindings,
+        );
+
         $scanUri = null;
         $scanId = null;
         $createScanDemand = null;
@@ -173,6 +195,7 @@ final readonly class OverviewViewStateFactory
             'hasMissingAltTextAccess' => $hasMissingAltTextAccess,
             'hasHeadingStructureAccess' => $this->moduleSettingsService->hasHeadingStructureAccess($pageTsConfig),
             'interactiveLabelCount' => $interactiveLabelCount,
+            'interactiveLabelFindings' => $interactiveLabelOverviewFindings,
             'interactiveLabelUri' => $interactiveLabelUri,
             'hasLandmarkStructureAccess' => $this->moduleSettingsService->hasLandmarkStructureAccess($pageTsConfig),
             'hasScanAccess' => $hasScanAccess,

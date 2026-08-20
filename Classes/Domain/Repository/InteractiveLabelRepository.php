@@ -23,6 +23,8 @@ final readonly class InteractiveLabelRepository
         string $table,
         array $fields,
         int $pageId,
+        int $languageId,
+        ?string $targetField = null,
     ): array {
         if (!isset($GLOBALS['TCA'][$table])) {
             return [];
@@ -40,14 +42,24 @@ final readonly class InteractiveLabelRepository
             return [];
         }
 
+        $selectFields = $validFields;
+
+        if (
+            $targetField !== null
+            && isset($GLOBALS['TCA'][$table]['columns'][$targetField])
+            && !in_array($targetField, $validFields, true)
+        ) {
+            $selectFields[] = $targetField;
+        }
+
         $queryBuilder = $this->connectionPool
             ->getQueryBuilderForTable($table);
 
-        return $queryBuilder
+        $queryBuilder
             ->select(
                 'uid',
                 'pid',
-                ...$validFields,
+                ...$selectFields,
             )
             ->from($table)
             ->where(
@@ -58,65 +70,33 @@ final readonly class InteractiveLabelRepository
                         Connection::PARAM_INT,
                     ),
                 ),
-            )
-            ->executeQuery()
-            ->fetchAllAssociative();
-    }
+            );
 
-    /**
-     * @param string[] $fields
-     *
-     * @return array{
-     *     tableInTca: bool,
-     *     validFieldCount: int,
-     *     recordsOnPage: int
-     * }
-     */
-    public function diagnose(
-        string $table,
-        array $fields,
-        int $pageId,
-    ): array {
-        $tableInTca = isset($GLOBALS['TCA'][$table]);
+        /*
+         * Get the language field configured for this table.
+         * Usually this is "sys_language_uid".
+         */
+        $languageField =
+            $GLOBALS['TCA'][$table]['ctrl']['languageField'] ?? null;
 
-        $validFields = [];
-
-        if ($tableInTca) {
-            $validFields = array_values(
-                array_filter(
-                    $fields,
-                    static fn(string $field): bool =>
-                    isset($GLOBALS['TCA'][$table]['columns'][$field]),
+        if (
+            is_string($languageField)
+            && $languageField !== ''
+            && isset($GLOBALS['TCA'][$table]['columns'][$languageField])
+        ) {
+            $queryBuilder->andWhere(
+                $queryBuilder->expr()->eq(
+                    $languageField,
+                    $queryBuilder->createNamedParameter(
+                        $languageId,
+                        Connection::PARAM_INT,
+                    ),
                 ),
             );
         }
 
-        $recordCount = 0;
-
-        if ($tableInTca && $validFields !== []) {
-            $queryBuilder = $this->connectionPool
-                ->getQueryBuilderForTable($table);
-
-            $recordCount = (int)$queryBuilder
-                ->count('uid')
-                ->from($table)
-                ->where(
-                    $queryBuilder->expr()->eq(
-                        'pid',
-                        $queryBuilder->createNamedParameter(
-                            $pageId,
-                            Connection::PARAM_INT,
-                        ),
-                    ),
-                )
-                ->executeQuery()
-                ->fetchOne();
-        }
-
-        return [
-            'tableInTca' => $tableInTca,
-            'validFieldCount' => count($validFields),
-            'recordsOnPage' => $recordCount,
-        ];
+        return $queryBuilder
+            ->executeQuery()
+            ->fetchAllAssociative();
     }
 }

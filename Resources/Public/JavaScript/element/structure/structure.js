@@ -57,6 +57,12 @@ const DOMAINS = {
                 .pageErrors=${pageLevelErrors}
             ></mindfula11y-heading-structure>`
   },
+    interactiveLabels: {
+      labelKey: "mindfula11y.structure.interactiveLabels",
+      renderView: () => html`
+      <slot name="interactive-labels"></slot>
+    `
+    },
   landmarks: {
     labelKey: "mindfula11y.structure.landmarks",
     tag: "mindfula11y-landmark-structure",
@@ -75,6 +81,9 @@ let Structure = class extends LitElement {
     this.languageId = 0;
     this.hasHeadingStructureAccess = false;
     this.hasLandmarkStructureAccess = false;
+    this.hasInteractiveLabels = false;
+    this.interactiveLabelCount = 0;
+    this.interactiveLabelFindings = [];
     this.collapsible = false;
     this.analysis = null;
     /**
@@ -147,11 +156,27 @@ let Structure = class extends LitElement {
         </div>`;
   }
   enabledTabs() {
-    return enabledDomains({
+    const tabs = enabledDomains({
       headings: this.hasHeadingStructureAccess,
       landmarks: this.hasLandmarkStructureAccess
     });
+
+    if (
+      this.hasInteractiveLabels &&
+      this.interactiveLabelCount > 0
+    ) {
+      tabs.push("interactiveLabels");
+    }
+
+    return tabs;
   }
+
+  enabledStructureTabs() {
+    return this.enabledTabs().filter(
+      (tab) => tab === "headings" || tab === "landmarks"
+    );
+  }
+
   renderTablist(tabs) {
     return this.tabs.renderTablist({
       ariaLabel: lll("mindfula11y.structure"),
@@ -159,10 +184,26 @@ let Structure = class extends LitElement {
     });
   }
   tabDescriptor(tab) {
+    if (tab === "interactiveLabels") {
+      return {
+        id: tab,
+        label: this.tabLabel(tab),
+        badge: this.interactiveLabelCount > 0
+          ? renderCountBadge(
+            "warning",
+            this.interactiveLabelCount,
+            `${this.interactiveLabelCount}`
+          )
+          : nothing
+      };
+    }
+
     return {
       id: tab,
       label: this.tabLabel(tab),
-      badge: this.renderTabBadge(severityCounts(this.analysis, [tab]))
+      badge: this.renderTabBadge(
+        severityCounts(this.analysis, this.enabledStructureTabs())
+      )
     };
   }
   /** Count badge of the domain's worst present impact (worst-first, like the scan view). */
@@ -229,7 +270,7 @@ let Structure = class extends LitElement {
     }
     const tabs = this.enabledTabs();
     const content = html`${this.renderTablist(tabs)}${tabs.map((tab) => this.renderPanel(tab))}`;
-    const statusRow = this.renderStatusRow(severityCounts(this.analysis, tabs));
+    const statusRow = this.renderStatusRow(severityCounts(this.analysis, this.enabledStructureTabs()));
     if (!this.collapsible) {
       return html`${statusRow}${content}`;
     }
@@ -244,17 +285,38 @@ let Structure = class extends LitElement {
    * would offer jumps into a hidden panel.
    */
   renderPanel(tab) {
+    if (tab === "interactiveLabels") {
+      return this.tabs.renderPanel({
+        tab,
+        busy: false,
+        content: html`
+          <slot name="interactive-labels"></slot>
+        `,
+        label: this.tabLabel(tab)
+      });
+    }
+
     const domain = DOMAINS[tab];
-    const analysis = this.analysis === null ? null : domain.analysisOf(this.analysis);
+
+    const analysis =
+      this.analysis === null
+        ? null
+        : domain.analysisOf(this.analysis);
+
     return this.tabs.renderPanel({
       tab,
       busy: this.analyzeTask.status === TaskStatus.PENDING,
-      content: html`${this.renderFindings(tab)}${domain.renderView(analysis, pageErrors(this.analysis, tab))}`,
-      // Used only without a tablist, where nothing else names this view —
-      // the status row above speaks for the widget, not for the domain.
+      content: html`
+        ${this.renderFindings(tab)}
+        ${domain.renderView(
+          analysis,
+          pageErrors(this.analysis, tab)
+        )}
+      `,
       label: this.tabLabel(tab)
     });
   }
+
   /**
    * Mirrors the native disclosure state back into the component and
    * remembers it. Setting the `open` attribute on first render (restoring
@@ -333,7 +395,7 @@ let Structure = class extends LitElement {
    * best practices; a future higher-impact rule must extend the label).
    */
   async announceResult(signal, isRefresh) {
-    const { moderate, minor } = severityCounts(this.analysis, this.enabledTabs());
+    const { moderate, minor } = severityCounts(this.analysis, this.enabledStructureTabs());
     const key = isRefresh ? "mindfula11y.structure.updated" : "mindfula11y.structure.analyzed";
     await this.announcer.announce(lll(key, moderate, minor), signal);
   }
@@ -346,7 +408,7 @@ Structure.styles = [
   findingsStyles,
   buttonStyles,
   viewportStyles,
-  componentStyles
+  componentStyles,
 ];
 __decorateClass([
   property({ type: Number, attribute: "page-id" })
@@ -360,6 +422,15 @@ __decorateClass([
 __decorateClass([
   property({ type: Boolean, attribute: "has-landmark-structure-access" })
 ], Structure.prototype, "hasLandmarkStructureAccess", 2);
+__decorateClass([
+  property({ type: Array, attribute: "interactive-label-findings" })
+], Structure.prototype, "interactiveLabelFindings", 2);
+__decorateClass([
+  property({ type: Boolean, attribute: "has-interactive-labels" })
+], Structure.prototype, "hasInteractiveLabels", 2);
+__decorateClass([
+  property({ type: Number, attribute: "interactive-label-count" })
+], Structure.prototype, "interactiveLabelCount", 2);
 __decorateClass([
   property({ type: Boolean })
 ], Structure.prototype, "collapsible", 2);

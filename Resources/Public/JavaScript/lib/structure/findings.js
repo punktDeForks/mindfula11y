@@ -1,6 +1,6 @@
 import { IMPACT_ORDER } from "../types.js";
 import { mergeViewports } from "./analysis.js";
-const DOMAIN_ORDER = ["headings", "landmarks"];
+const DOMAIN_ORDER = ["headings", "landmarks", "interactive_labels"];
 const enabledDomains = (enabled) => DOMAIN_ORDER.filter((domain) => enabled[domain]);
 const domainErrors = (analysis, domain) => {
   if (analysis === null) {
