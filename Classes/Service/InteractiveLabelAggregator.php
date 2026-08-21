@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace MindfulMarkup\MindfulA11y\Service;
 
+use TYPO3\CMS\Core\Localization\LanguageService;
+use TYPO3\CMS\Core\Localization\LanguageServiceFactory;
+
 final readonly class InteractiveLabelAggregator
 {
     private const DEFAULT_REPEATED_THRESHOLD = 2;
@@ -12,6 +15,14 @@ final readonly class InteractiveLabelAggregator
     private const REPEATED_RULE = 'repeated_generic_label';
     private const DIFFERENT_TARGETS_RULE = 'generic_label_different_targets';
 
+    private const LANGUAGE_FILE = ModuleLabelService::LANGUAGE_FILE;
+
+    public function __construct(
+        private LanguageServiceFactory $languageServiceFactory,
+        private BackendUserProvider $backendUserProvider,
+    ) {
+    }
+
     public function annotate(
         array $labels,
     ): array {
@@ -19,6 +30,7 @@ final readonly class InteractiveLabelAggregator
             return [];
         }
 
+        // Page-wide checks run against ALL labels.
         $labels = $this->annotateRepeated($labels);
         $labels = $this->annotateDifferentTargets($labels);
 
@@ -35,6 +47,7 @@ final readonly class InteractiveLabelAggregator
             $hasDifferentTargets =
                 (bool)($label['hasDifferentTargets'] ?? false);
 
+            // Completely valid label -> do not show it.
             if (
                 !$hasSingleIssue
                 && !$isRepeated
@@ -225,46 +238,64 @@ final readonly class InteractiveLabelAggregator
         );
     }
 
+    /**
+     * Adds both the raw LLL: keys (used by the server-rendered Fluid
+     * disclosure list, which still calls f:translate itself) and the
+     * already-resolved text (used by the Lit-based mindfula11y-structure
+     * tab, which has no access to arbitrary LLL: paths — only to the
+     * curated inline label array registered in ModuleLabelService). Only
+     * the PRIMARY rule is resolved to text: the unified tab shows one
+     * rule per row, matching applyAggregateIssue()'s precedence, so
+     * repeatedRule/differentTargetsRule keep their keys (for the Fluid
+     * fallback list) without a matching *Text pair.
+     */
     private function addTranslationKeys(array $finding): array
     {
         $rule = (string)($finding['rule'] ?? '');
 
         if ($rule !== '') {
-            $finding['ruleTitleKey'] =
-                'LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:'
-                . 'findings.rule.title.'
-                . $rule;
+            $titleKey = self::LANGUAGE_FILE . 'findings.rule.title.' . $rule;
+            $descriptionKey = self::LANGUAGE_FILE . 'findings.rule.' . $rule;
 
-            $finding['ruleDescriptionKey'] =
-                'LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:'
-                . 'findings.rule.'
-                . $rule;
+            $finding['ruleTitleKey'] = $titleKey;
+            $finding['ruleDescriptionKey'] = $descriptionKey;
+
+            $languageService = $this->languageService();
+            $finding['ruleTitle'] = $languageService->sL($titleKey);
+            $finding['ruleDescription'] = $languageService->sL($descriptionKey);
         }
 
         if (!empty($finding['repeatedRule'])) {
-            $finding['repeatedRuleTitleKey'] =
-                'LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:'
-                . 'findings.rule.title.'
-                . $finding['repeatedRule'];
+            $titleKey = self::LANGUAGE_FILE . 'findings.rule.title.' . $finding['repeatedRule'];
+            $descriptionKey = self::LANGUAGE_FILE . 'findings.rule.' . $finding['repeatedRule'];
 
-            $finding['repeatedRuleDescriptionKey'] =
-                'LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:'
-                . 'findings.rule.'
-                . $finding['repeatedRule'];
+            $finding['repeatedRuleTitleKey'] = $titleKey;
+            $finding['repeatedRuleDescriptionKey'] = $descriptionKey;
+
+            $languageService = $this->languageService();
+            $finding['repeatedRuleTitle'] = $languageService->sL($titleKey);
+            $finding['repeatedRuleDescription'] = $languageService->sL($descriptionKey);
         }
 
         if (!empty($finding['differentTargetsRule'])) {
-            $finding['differentTargetsRuleTitleKey'] =
-                'LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:'
-                . 'findings.rule.title.'
-                . $finding['differentTargetsRule'];
+            $titleKey = self::LANGUAGE_FILE . 'findings.rule.title.' . $finding['differentTargetsRule'];
+            $descriptionKey = self::LANGUAGE_FILE . 'findings.rule.' . $finding['differentTargetsRule'];
 
-            $finding['differentTargetsRuleDescriptionKey'] =
-                'LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:'
-                . 'findings.rule.'
-                . $finding['differentTargetsRule'];
+            $finding['differentTargetsRuleTitleKey'] = $titleKey;
+            $finding['differentTargetsRuleDescriptionKey'] = $descriptionKey;
+
+            $languageService = $this->languageService();
+            $finding['differentTargetsRuleTitle'] = $languageService->sL($titleKey);
+            $finding['differentTargetsRuleDescription'] = $languageService->sL($descriptionKey);
         }
 
         return $finding;
+    }
+
+    private function languageService(): LanguageService
+    {
+        return $this->languageServiceFactory->createFromUserPreferences(
+            $this->backendUserProvider->get(),
+        );
     }
 }

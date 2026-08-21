@@ -107,10 +107,16 @@ final readonly class OverviewViewStateFactory
         // (ModuleSettingsService::getInteractiveLabelFields()) — the overview
         // must not diverge from what InteractiveLabelsFeatureRenderer counts,
         // or "View details" would open a list that doesn't match the badge.
+        //
+        // interactiveLabelFindings is handed to <mindfula11y-structure> as a
+        // JSON attribute (its "Beschriftungen" tab), so its default MUST be
+        // an empty array here, not left undefined — the return array below
+        // references it unconditionally.
         $hasInteractiveLabelsAccess = $this->moduleSettingsService->hasInteractiveLabelsAccess($pageTsConfig);
 
         $interactiveLabelUri = null;
         $interactiveLabelCount = 0;
+        $interactiveLabelFindings = [];
 
         if ($hasInteractiveLabelsAccess) {
             $site = $this->siteFinder->getSiteByPageId($pageId);
@@ -144,28 +150,6 @@ final readonly class OverviewViewStateFactory
             $interactiveLabelUri = $this->buildFeatureUri(Feature::INTERACTIVE_LABELS, $pageId, $languageId);
         }
 
-        $groupedInteractiveLabelFindings = [];
-
-        foreach ($interactiveLabelFindings as $finding) {
-            $value = trim((string)($finding['value'] ?? ''));
-            $rule = (string)($finding['rule'] ?? '');
-
-            $key = mb_strtolower($value) . '|' . $rule;
-
-            if (!isset($groupedInteractiveLabelFindings[$key])) {
-                $groupedInteractiveLabelFindings[$key] = [
-                    ...$finding,
-                    'overviewCount' => 0,
-                ];
-            }
-
-            $groupedInteractiveLabelFindings[$key]['overviewCount']++;
-        }
-
-        $interactiveLabelOverviewFindings = array_values(
-            $groupedInteractiveLabelFindings,
-        );
-
         $scanUri = null;
         $scanId = null;
         $createScanDemand = null;
@@ -194,9 +178,10 @@ final readonly class OverviewViewStateFactory
             'missingAltTextUri' => $missingAltTextUri,
             'hasMissingAltTextAccess' => $hasMissingAltTextAccess,
             'hasHeadingStructureAccess' => $this->moduleSettingsService->hasHeadingStructureAccess($pageTsConfig),
+            'hasInteractiveLabelsAccess' => $hasInteractiveLabelsAccess,
             'interactiveLabelCount' => $interactiveLabelCount,
-            'interactiveLabelFindings' => $interactiveLabelOverviewFindings,
             'interactiveLabelUri' => $interactiveLabelUri,
+            'interactiveLabelFindings' => $interactiveLabelFindings,
             'hasLandmarkStructureAccess' => $this->moduleSettingsService->hasLandmarkStructureAccess($pageTsConfig),
             'hasScanAccess' => $hasScanAccess,
             'scanId' => $scanId,
@@ -227,6 +212,7 @@ final readonly class OverviewViewStateFactory
     public function registerJavaScriptModules(): void
     {
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/structure/structure.js');
+        $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/interactive-labels/interactive-label-findings.js');
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/scan-issue-count/scan-issue-count.js');
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/notice/notice.js');
         // Pre-upgrade guard for the server-rendered custom elements above.

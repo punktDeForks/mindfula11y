@@ -360,20 +360,20 @@
 				<source>Edit record [%1$s][%2$s].</source>
 			</trans-unit>
 
-			<trans-unit id="findings.rule.potentially_vague_interactive_label"
-						resname="findings.rule.potentially_vague_interactive_label">
+			<trans-unit id="findings.rule.description.potentially_vague_interactive_label"
+						resname="findings.rule.description.potentially_vague_interactive_label">
 				<source>The label may not describe the purpose of the action or link clearly enough on its own. Please review whether a more specific label would make the destination or action easier to understand.</source>
 			</trans-unit>
-			<trans-unit id="findings.rule.symbol_only_label"
-						resname="findings.rule.symbol_only_label">
+			<trans-unit id="findings.rule.description.symbol_only_label"
+						resname="findings.rule.description.symbol_only_label">
 				<source>The label contains only symbols and no textual description. Please review whether the meaning of the control is sufficiently clear for users.</source>
 			</trans-unit>
-			<trans-unit id="findings.rule.repeated_generic_label"
-						resname="findings.rule.repeated_generic_label">
+			<trans-unit id="findings.rule.description.repeated_generic_label"
+						resname="findings.rule.description.repeated_generic_label">
 				<source>The same generic label is used multiple times on this page. Repeated unspecific labels can make different actions or destinations harder to distinguish. Please review whether the labels can be made more descriptive.</source>
 			</trans-unit>
-			<trans-unit id="findings.rule.generic_label_different_targets"
-						resname="findings.rule.generic_label_different_targets">
+			<trans-unit id="findings.rule.description.generic_label_different_targets"
+						resname="findings.rule.description.generic_label_different_targets">
 				<source>The same generic label is used for different destinations. Users may have difficulty distinguishing the purpose of the individual links. Consider adding information about the destination to each label.</source>
 			</trans-unit>
 

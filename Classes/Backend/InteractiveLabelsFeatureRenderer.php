@@ -122,7 +122,7 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
         );
 
         $this->pageRenderer->loadJavaScriptModule(
-            '@mindfulmarkup/mindfula11y/element/interactive-label/interactive-label-disclosure.js',
+            '@mindfulmarkup/mindfula11y/element/interactive-label-finding/interactive-label-finding.js',
         );
 
         return $context->moduleTemplate->renderResponse(
