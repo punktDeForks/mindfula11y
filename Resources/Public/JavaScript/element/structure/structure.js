@@ -46,8 +46,8 @@ import findingsStyles from "../../styles/findings.css.js";
 import noticeStyles from "../../styles/notice.css.js";
 import tabsStyles from "../../styles/tabs.css.js";
 import viewportStyles from "../../styles/viewport.css.js";
-import componentStyles from "./structure.css.js";
 import labelStyles from "../interactive-labels/interactive-labels.css.js";
+import componentStyles from "./structure.css.js";
 const EXPANDED_STORAGE_KEY = "mindfula11y-structure-expanded";
 const DOMAINS = {
   headings: {

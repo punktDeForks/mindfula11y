@@ -39,138 +39,22 @@
                                             value="{finding.value}"
                                         />
 
-                                        <div class="d-flex flex-column gap-3 mt-3">
-
-                                            <f:switch expression="{finding.rule}">
-
-                                                <f:case value="potentially_vague_interactive_label">
-                                                    <mindfula11y-notice state="warning">
-                                                        <span>
-                                                            <strong>
-                                                                <f:translate
-                                                                    key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.title.potentially_vague_interactive_label"
-                                                                />
-                                                            </strong>
-
-                                                            <br />
-
-                                                            <f:translate
-                                                                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.potentially_vague_interactive_label"
-                                                            />
-                                                        </span>
-                                                    </mindfula11y-notice>
-                                                </f:case>
-
-                                                <f:case value="symbol_only_label">
-                                                    <mindfula11y-notice state="warning">
-                                                        <span>
-                                                            <strong>
-                                                                <f:translate
-                                                                    key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.title.symbol_only_label"
-                                                                />
-                                                            </strong>
-
-                                                            <br />
-
-                                                            <f:translate
-                                                                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.symbol_only_label"
-                                                            />
-                                                        </span>
-                                                    </mindfula11y-notice>
-                                                </f:case>
-
-
-                                                <f:case value="repeated_generic_label">
-                                                    <mindfula11y-notice
-                                                        state="warning"
-                                                        count="{finding.occurrenceCount}"
-                                                    >
-                                                        <span>
-                                                            <strong>
-                                                                <f:translate
-                                                                    key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.title.repeated_generic_label"
-                                                                />
-                                                            </strong>
-
-                                                            <br />
-
-                                                            <f:translate
-                                                                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.repeated_generic_label"
-                                                            />
-                                                        </span>
-                                                    </mindfula11y-notice>
-                                                </f:case>
-
-                                                <f:case value="generic_label_different_targets">
-                                                    <mindfula11y-notice
-                                                        state="warning"
-                                                        count="{finding.distinctTargetCount}"
-                                                    >
-                                                        <span>
-                                                            <strong>
-                                                                <f:translate
-                                                                    key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.title.generic_label_different_targets"
-                                                                />
-                                                            </strong>
-
-                                                            <br />
-
-                                                            <f:translate
-                                                                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.generic_label_different_targets"
-                                                            />
-                                                        </span>
-                                                    </mindfula11y-notice>
-                                                </f:case>
-
-                                            </f:switch>
-
-                                            <f:if condition="{finding.isRepeated}">
-                                                <f:if condition="{finding.rule} != 'repeated_generic_label'">
-                                                    <mindfula11y-notice
-                                                        state="warning"
-                                                        count="{finding.occurrenceCount}"
-                                                    >
-                                                        <span>
-                                                            <strong>
-                                                                <f:translate
-                                                                    key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.title.repeated_generic_label"
-                                                                />
-                                                            </strong>
-
-                                                            <br />
-
-                                                            <f:translate
-                                                                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.repeated_generic_label"
-                                                            />
-                                                        </span>
-                                                    </mindfula11y-notice>
-                                                </f:if>
-                                            </f:if>
-
-                                            <f:if condition="{finding.hasDifferentTargets}">
-                                                <f:if condition="{finding.rule} != 'generic_label_different_targets'">
-                                                    <mindfula11y-notice
-                                                        state="warning"
-                                                        count="{finding.distinctTargetCount}"
-                                                    >
-                                                        <span>
-                                                            <strong>
-                                                                <f:translate
-                                                                    key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.title.generic_label_different_targets"
-                                                                />
-                                                            </strong>
-
-                                                            <br />
-
-                                                            <f:translate
-                                                                key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:findings.rule.generic_label_different_targets"
-                                                            />
-                                                        </span>
-                                                    </mindfula11y-notice>
-                                                </f:if>
-                                            </f:if>
-
-                                        </div>
+                                        <!--
+                                            Replaces the previous f:switch over
+                                            finding.rule plus two duplicated
+                                            f:if(isRepeated)/f:if(hasDifferentTargets)
+                                            blocks — up to three near-identical
+                                            <mindfula11y-notice> copies per
+                                            finding. mindfula11y-interactive-label-finding
+                                            resolves the same "primary rule, plus
+                                            secondary page-wide issues if not
+                                            already primary" logic once, in JS,
+                                            from the finding data alone.
+                                        -->
+                                        <mindfula11y-interactive-label-finding
+                                            class="d-block mt-3"
+                                            finding="{finding -> f:format.json()}"
+                                        ></mindfula11y-interactive-label-finding>
                                     </div>
                                     <div class="d-flex gap-2 mb-3">
                                         <button
@@ -187,6 +71,7 @@
                                     </div>
                                     <div class="border-top pt-3">
                                         <be:link.editRecord
+                                            class="text-decoration-underline"
                                             uid="{finding.uid}"
                                             table="{finding.table}"
                                             returnUrl="{f:be.uri(

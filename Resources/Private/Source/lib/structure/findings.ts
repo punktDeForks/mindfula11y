@@ -68,8 +68,8 @@ export const pageErrors = (analysis: StructureAnalysis | null, domain: Structure
  * badge, every enabled one for the widget's status row and announcement.
  */
 export const severityCounts = (
-  analysis: StructureAnalysis | null,
-  domains: StructureTab[],
+    analysis: StructureAnalysis | null,
+    domains: StructureTab[],
 ): Record<ImpactSeverity, number> => {
     const counts: Record<ImpactSeverity, number> = { critical: 0, serious: 0, moderate: 0, minor: 0 };
     for (const domain of domains) {

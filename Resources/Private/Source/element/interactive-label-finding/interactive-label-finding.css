@@ -1,0 +1,30 @@
+@layer component {
+    .notices {
+        display: flex;
+        flex-direction: column;
+        gap: var(--mindfula11y-space-2xs);
+        padding: var(--mindfula11y-space-2xs);
+        font-size: 14px;
+        background-color: var(--mindfula11y-component-bg);
+    }
+
+    .card {
+        padding: var(--mindfula11y-space-fixed-s);
+        container-type: inline-size;
+        background-color: var(--mindfula11y-component-bg);
+        border: 1px solid var(--mindfula11y-border);
+        border-radius: var(--mindfula11y-radius);
+    }
+
+    .body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--mindfula11y-space-fixed-s);
+
+        @container (inline-size >= 30rem) {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: start;
+        }
+    }
+}

@@ -16,7 +16,7 @@
             </div>
             <div class="callout-body d-flex flex-column gap-3">
                 <f:if condition="{hasMissingAltTextAccess} && {fileReferenceCount} > 0">
-                    <mindfula11y-notice state="warning" count="{fileReferenceCount}">
+                    <mindfula11y-notice state="warning" count="{fileReferenceCount}" >
                         <span>
                             <f:translate
                                 key="LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:altText.count" />
@@ -45,6 +45,7 @@
                     <mindfula11y-notice
                         state="warning"
                         count="{interactiveLabelCount}"
+                        class="summary-notice-count"
                     >
         <span>
             <f:translate

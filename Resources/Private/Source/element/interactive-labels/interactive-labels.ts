@@ -5,126 +5,104 @@ import { customElement, property } from 'lit/decorators.js';
 
 import '../notice/notice.js';
 
-import {
-  impactState,
-  renderCountBadge,
-} from '../../lib/status-render.js';
+import { impactState, renderCountBadge } from '../../lib/status-render.js';
 
 import { baseStyles } from '../../styles/base-styles.js';
 import findingsStyles from '../../styles/findings.css.js';
 import labelStyles from './interactive-labels.css.js';
 
-type InteractiveLabelSeverity =
-  | 'minor'
-  | 'moderate'
-  | 'serious'
-  | 'critical';
+type InteractiveLabelSeverity = 'minor' | 'moderate' | 'serious' | 'critical';
 
 interface InteractiveLabelFinding {
-  value: string;
-  rule?: string;
-  severity: InteractiveLabelSeverity;
+    value: string;
+    rule?: string;
+    severity: InteractiveLabelSeverity;
 
-  overviewCount?: number;
-  occurrenceCount?: number;
-  distinctTargetCount?: number;
+    overviewCount?: number;
+    occurrenceCount?: number;
+    distinctTargetCount?: number;
 
-  isRepeated?: boolean;
-  hasDifferentTargets?: boolean;
+    isRepeated?: boolean;
+    hasDifferentTargets?: boolean;
 }
 
 interface InteractiveLabelRow {
-  value: string;
-  ruleTitle: string;
-  ruleDescription: string;
-  severity: InteractiveLabelSeverity;
-  count: number;
+    value: string;
+    ruleTitle: string;
+    ruleDescription: string;
+    severity: InteractiveLabelSeverity;
+    count: number;
 }
 
 @customElement('mindfula11y-interactive-labels')
 export class InteractiveLabels extends LitElement {
-  static override styles: CSSResult[] = [
-    ...baseStyles,
-    findingsStyles,
-    labelStyles,
-  ];
+    static override styles: CSSResult[] = [...baseStyles, findingsStyles, labelStyles];
 
-  @property({ type: Array })
-  findings: InteractiveLabelFinding[] = [];
+    @property({ type: Array })
+    findings: InteractiveLabelFinding[] = [];
 
-  override render(): TemplateResult {
-    const rows = this.groupFindings();
+    override render(): TemplateResult {
+        const rows = this.groupFindings();
 
-    if (rows.length === 0) {
-      return html`
+        if (rows.length === 0) {
+            return html`
         <mindfula11y-notice state="success">
                     <span>
-                        ${lll(
-                          'mindfula11y.interactiveLabels.noFindings',
-                        )}
+                        ${lll('mindfula11y.interactiveLabels.noFindings')}
                     </span>
         </mindfula11y-notice>
       `;
-    }
+        }
 
-    return html`
+        return html`
       <div class="interactive-labels">
-        ${rows.map(
-          (row) => this.renderRow(row),
-        )}
+        ${rows.map((row) => this.renderRow(row))}
       </div>
     `;
-  }
-
-  private groupFindings(): InteractiveLabelRow[] {
-    const grouped = new Map<string, InteractiveLabelRow>();
-
-    for (const finding of this.findings) {
-      if (!finding.rule) {
-        continue;
-      }
-
-      const normalizedValue = finding.value
-        .trim()
-        .toLocaleLowerCase();
-
-      const key = `${finding.rule}:${normalizedValue}`;
-
-      const existing = grouped.get(key);
-
-      if (existing) {
-        existing.count += finding.overviewCount ?? 1;
-        continue;
-      }
-
-      const ruleTitleKey =
-        `mindfula11y.findings.rule.title.${finding.rule}`;
-
-      const ruleDescriptionKey =
-        `mindfula11y.findings.rule.description.${finding.rule}`;
-
-      const ruleTitle = lll(ruleTitleKey);
-      const ruleDescription = lll(ruleDescriptionKey);
-
-      grouped.set(key, {
-        value: finding.value,
-        ruleTitle,
-        ruleDescription,
-        severity: finding.severity,
-        count: finding.overviewCount ?? 1,
-      });
     }
 
-    return [...grouped.values()];
-  }
+    private groupFindings(): InteractiveLabelRow[] {
+        const grouped = new Map<string, InteractiveLabelRow>();
 
-  private renderRow(
-    row: InteractiveLabelRow,
-  ): TemplateResult {
+        for (const finding of this.findings) {
+            if (!finding.rule) {
+                continue;
+            }
 
-    return html`
+            const normalizedValue = finding.value.trim().toLocaleLowerCase();
+
+            const key = `${finding.rule}:${normalizedValue}`;
+
+            const existing = grouped.get(key);
+
+            if (existing) {
+                existing.count += finding.overviewCount ?? 1;
+                continue;
+            }
+
+            const ruleTitleKey = `mindfula11y.findings.rule.title.${finding.rule}`;
+
+            const ruleDescriptionKey = `mindfula11y.findings.rule.description.${finding.rule}`;
+
+            const ruleTitle = lll(ruleTitleKey);
+            const ruleDescription = lll(ruleDescriptionKey);
+
+            grouped.set(key, {
+                value: finding.value,
+                ruleTitle,
+                ruleDescription,
+                severity: finding.severity,
+                count: finding.overviewCount ?? 1,
+            });
+        }
+
+        return [...grouped.values()];
+    }
+
+    private renderRow(row: InteractiveLabelRow): TemplateResult {
+        return html`
       <details class="interactive-label-row">
-        <summary>
+        <summary class="row-summary">
                 <span class="value">
                     ${row.value}
                 </span>
@@ -133,25 +111,21 @@ export class InteractiveLabels extends LitElement {
                     ${row.ruleTitle}
                 </span>
 
-          ${renderCountBadge(
-            impactState(row.severity),
-            row.count,
-          )}
+          ${renderCountBadge(impactState(row.severity), row.count)}
         </summary>
 
         <div class="rule-description">
-          <p>
+          <p class="rule-description-text">
             ${row.ruleDescription}
           </p>
         </div>
       </details>
     `;
-  }
+    }
 }
 
-
 declare global {
-  interface HTMLElementTagNameMap {
-    'mindfula11y-interactive-labels': InteractiveLabels;
-  }
+    interface HTMLElementTagNameMap {
+        'mindfula11y-interactive-labels': InteractiveLabels;
+    }
 }

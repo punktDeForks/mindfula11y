@@ -7,19 +7,16 @@
     }
 
     .interactive-label-row {
+        --mindfula11y-interactive-labels-accent: var(--mindfula11y-state-warning-border);
+        overflow: hidden;
+
         background-color: var(--mindfula11y-component-bg);
         border: 1px solid var(--mindfula11y-border);
         border-radius: var(--mindfula11y-radius);
-        overflow: hidden;
     }
 
-    .interactive-label-row summary {
-        display: grid;
-        grid-template-columns:
-            auto
-            minmax(6rem, auto)
-            minmax(0, 1fr)
-            auto;
+    .row-summary {
+        display: flex;
 
         gap: var(--mindfula11y-space-xs);
         align-items: center;
@@ -31,51 +28,36 @@
         list-style: none;
     }
 
-    .interactive-label-row summary::-webkit-details-marker {
+    .row-summary::-webkit-details-marker {
         display: none;
     }
 
-    .interactive-label-row summary::before {
-        content: "▶";
+    .row-summary::before {
         font-size: 0.75em;
         line-height: 1;
         color: var(--mindfula11y-text-subtle);
+        content: "▶";
     }
 
-    .interactive-label-row[open] summary::before {
+    .interactive-label-row[open] .row-summary::before {
         content: "▼";
     }
-    .value{
+
+    .value {
         display: inline-flex;
-        gap: var(--mindfula11y-space-3xs);
         align-items: center;
-        min-block-size: var(--mindfula11y-control-min-size);
         padding-block: var(--mindfula11y-control-padding-block);
         padding-inline: var(--mindfula11y-control-padding-inline);
         font-weight: 700;
         color: var(--mindfula11y-input-color);
         background-color: color-mix(
             in srgb,
-            var(--mindfula11y-landmark-structure-accent) 14%,
+            var(--mindfula11y-interactive-labels-accent) 14%,
             var(--mindfula11y-input-bg)
         );
         border: 1px solid
-        color-mix(in srgb, var(--mindfula11y-landmark-structure-accent) 45%, var(--mindfula11y-input-border));
+            color-mix(in srgb, var(--mindfula11y-interactive-labels-accent) 45%, var(--mindfula11y-input-border));
         border-radius: 999em;
-
-    .count {
-        justify-content: center;
-        min-inline-size: var(--mindfula11y-control-min-size);
-        padding-block: 0;
-        padding-inline: 0.4em;
-        font-size: var(--mindfula11y-font-size-xs);
-        font-weight: 600;
-        background-color: color-mix(
-            in srgb,
-            var(--mindfula11y-landmark-structure-accent) 14%,
-            var(--mindfula11y-input-bg)
-        );
-        color: var(--mindfula11y-input-color);
     }
 
     .rule-title {
@@ -84,27 +66,45 @@
         overflow-wrap: anywhere;
     }
 
-        .rule-description {
-            padding-block: var(--mindfula11y-space-xs);
-            padding-inline: var(--mindfula11y-space-xs);
+    .count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-inline-size: var(--mindfula11y-control-min-size);
+        padding-block: 0;
+        padding-inline: 0.4em;
 
-            color: var(--mindfula11y-text-subtle);
-            background-color: var(--mindfula11y-surface);
+        margin-inline-start: auto;
+        font-size: var(--mindfula11y-font-size-xs);
+        font-weight: 600;
+        color: var(--mindfula11y-input-color);
+        background-color: color-mix(
+            in srgb,
+            var(--mindfula11y-interactive-labels-accent) 14%,
+            var(--mindfula11y-input-bg)
+        );
+        border-radius: 999em;
+    }
 
-            border-block-start: 1px solid var(--mindfula11y-border);
-        }
+    .rule-description {
+        padding-block: var(--mindfula11y-space-xs);
+        padding-inline: var(--mindfula11y-space-xs);
 
-        .rule-description p {
-            margin: 0;
-            max-inline-size: 70ch;
-            line-height: 1.5;
-        }
+        color: var(--mindfula11y-text-subtle);
+        background-color: var(--mindfula11y-surface);
+
+        border-block-start: 1px solid var(--mindfula11y-border);
+    }
+
+    .rule-description-text {
+        max-inline-size: 70ch;
+        margin: 0;
+        line-height: 1.5;
+    }
 
     @container (inline-size >= 24rem) {
-        .interactive-label-row summary {
+        .row-summary {
             gap: var(--mindfula11y-space-3xs);
         }
     }
 }
-}
-

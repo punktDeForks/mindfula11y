@@ -447,25 +447,24 @@
 				<target>Datensatz bearbeiten [%1$s][%2$s].</target>
 			</trans-unit>
 
-			<trans-unit id="findings.rule.description.potentially_vague_interactive_label"
-						resname="findings.rule.description.potentially_vague_interactive_label">
-				<source>The label may not describe the purpose of the action or link clearly enough on its own. Please review whether a more specific label would make the destination or action easier to understand.</source>
-				<target>Die Beschriftung beschreibt den Zweck der Aktion oder des Links möglicherweise nicht eindeutig genug. Bitte prüfen Sie, ob eine spezifischere Beschriftung das Ziel oder die Aktion verständlicher machen würde.</target>
+			<trans-unit id="findings.rule.description.potentially_vague_interactive_label" resname="findings.rule.description.potentially_vague_interactive_label">
+				<source>The label may not clearly describe the purpose of the action or link. Please review whether a more specific label would make it easier to understand.</source>
+				<target>Die Beschriftung beschreibt den Zweck der Aktion oder des Links möglicherweise nicht eindeutig. Bitte prüfen Sie, ob eine spezifischere Beschriftung verständlicher wäre.</target>
 			</trans-unit>
-			<trans-unit id="findings.rule.description.symbol_only_label"
-						resname="findings.rule.description.symbol_only_label">
-				<source>The label contains only symbols and no textual description. Please review whether the meaning of the control is sufficiently clear for users.</source>
-				<target>Die Beschriftung besteht ausschließlich aus Symbolen und enthält keine textuelle Beschreibung. Bitte prüfen Sie, ob die Bedeutung des Bedienelements für Nutzer ausreichend verständlich ist.</target>
+
+			<trans-unit id="findings.rule.description.symbol_only_label" resname="findings.rule.description.symbol_only_label">
+				<source>The label contains only symbols and no textual description. Please review whether the meaning of the control is clear.</source>
+				<target>Die Beschriftung enthält nur Symbole und keine textuelle Beschreibung. Bitte prüfen Sie, ob die Bedeutung des Bedienelements eindeutig ist.</target>
 			</trans-unit>
-			<trans-unit id="findings.rule.description.repeated_generic_label"
-						resname="findings.rule.description.repeated_generic_label">
-				<source>The same generic label is used multiple times on this page. Repeated unspecific labels can make different actions or destinations harder to distinguish. Please review whether the labels can be made more descriptive.</source>
-				<target>Dieselbe unspezifische Beschriftung wird mehrfach auf dieser Seite verwendet. Wiederholte unspezifische Beschriftungen können dazu führen, dass unterschiedliche Aktionen oder Ziele schwerer voneinander zu unterscheiden sind. Bitte prüfen Sie, ob die Beschriftungen aussagekräftiger formuliert werden können.</target>
+
+			<trans-unit id="findings.rule.description.repeated_generic_label" resname="findings.rule.description.repeated_generic_label">
+				<source>The same generic label is used multiple times on this page. Please review whether the labels can be made more descriptive.</source>
+				<target>Dieselbe unspezifische Beschriftung wird mehrfach auf dieser Seite verwendet. Bitte prüfen Sie, ob die Beschriftungen aussagekräftiger formuliert werden können.</target>
 			</trans-unit>
-			<trans-unit id="findings.rule.description.generic_label_different_targets"
-						resname="findings.rule.description.generic_label_different_targets">
-				<source>The same generic label is used for different destinations. Users may have difficulty distinguishing the purpose of the individual links. Consider adding information about the destination to each label.</source>
-				<target>Dieselbe unspezifische Beschriftung wird für unterschiedliche Ziele verwendet. Dadurch kann es schwieriger sein, den Zweck der einzelnen Links zu unterscheiden. Erwägen Sie, das jeweilige Ziel in der Beschriftung genauer zu benennen.</target>
+
+			<trans-unit id="findings.rule.description.generic_label_different_targets" resname="findings.rule.description.generic_label_different_targets">
+				<source>The same generic label is used for different destinations. Consider making the destination clear in each label.</source>
+				<target>Dieselbe unspezifische Beschriftung wird für unterschiedliche Ziele verwendet. Erwägen Sie, das jeweilige Ziel in der Beschriftung deutlicher zu benennen.</target>
 			</trans-unit>
 
 			<trans-unit id="findings.label" resname="findings.label">
@@ -479,23 +478,23 @@
 
 			<trans-unit id="findings.rule.title.potentially_vague_interactive_label"
 						resname="findings.rule.title.potentially_vague_interactive_label">
-				<source>Check: Potentially vague label</source>
-				<target>Prüfung: Potenziell unklare Beschriftung</target>
+				<source>Potentially vague label</source>
+				<target>Potenziell unklare Beschriftung</target>
 			</trans-unit>
 			<trans-unit id="findings.rule.title.symbol_only_label"
 						resname="findings.rule.title.symbol_only_label">
-				<source>Check: Symbol-only label</source>
-				<target>Prüfung: Nur-Symbol-Beschriftung</target>
+				<source>Symbol-only label</source>
+				<target>Nur-Symbol-Beschriftung</target>
 			</trans-unit>
 			<trans-unit id="findings.rule.title.repeated_generic_label"
 						resname="findings.rule.title.repeated_generic_label">
-				<source>Check: Repeated label</source>
-				<target>Prüfung: Wiederholte Beschriftung</target>
+				<source>Repeated label</source>
+				<target>Wiederholte Beschriftung</target>
 			</trans-unit>
 			<trans-unit id="findings.rule.title.generic_label_different_targets"
 						resname="findings.rule.title.generic_label_different_targets">
-				<source>Check: Same generic label with different targets</source>
-				<target>Prüfung: Gleiche, allgemeine Beschriftung mit unterschiedlichen Zielen</target>
+				<source>Same generic label with different targets</source>
+				<target>Gleiche, allgemeine Beschriftung mit unterschiedlichen Zielen</target>
 			</trans-unit>
 
             <trans-unit id="structure.headings" resname="structure.headings">

@@ -212,7 +212,6 @@ final readonly class OverviewViewStateFactory
     public function registerJavaScriptModules(): void
     {
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/structure/structure.js');
-        $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/interactive-labels/interactive-label-findings.js');
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/scan-issue-count/scan-issue-count.js');
         $this->pageRenderer->loadJavaScriptModule('@mindfulmarkup/mindfula11y/element/notice/notice.js');
         // Pre-upgrade guard for the server-rendered custom elements above.
