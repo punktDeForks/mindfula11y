@@ -64,7 +64,6 @@ import findingsStyles from '../../styles/findings.css.js';
 import noticeStyles from '../../styles/notice.css.js';
 import tabsStyles from '../../styles/tabs.css.js';
 import viewportStyles from '../../styles/viewport.css.js';
-import labelStyles from '../interactive-labels/interactive-labels.css.js';
 import componentStyles from './structure.css.js';
 
 /**
@@ -142,7 +141,6 @@ export class Structure extends LitElement {
         buttonStyles,
         viewportStyles,
         componentStyles,
-        labelStyles,
     ];
 
     @property({ type: Number, attribute: 'page-id' }) pageId: number = 0;

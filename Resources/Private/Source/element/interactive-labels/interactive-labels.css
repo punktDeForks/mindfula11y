@@ -39,7 +39,7 @@
         content: "▶";
     }
 
-    .interactive-label-row[open] .row-summary::before {
+    .interactive-label-row:where([open]) .row-summary::before {
         content: "▼";
     }
 
@@ -61,12 +61,18 @@
     }
 
     .rule-title {
-        min-width: 0;
+        min-inline-size: 0;
         color: var(--mindfula11y-text-subtle);
         overflow-wrap: anywhere;
     }
 
-    .count {
+    /*
+     * Scoped under .row-summary rather than a bare `.count`: this stylesheet
+     * is adopted by other components too, and an unscoped `.count` would
+     * override the shared pill from styles/notice.css wherever both sheets
+     * land in the same shadow root (e.g. structure.ts's own tab badges).
+     */
+    .row-summary .count {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -83,6 +89,8 @@
             var(--mindfula11y-interactive-labels-accent) 14%,
             var(--mindfula11y-input-bg)
         );
+        border: 1px solid
+            color-mix(in srgb, var(--mindfula11y-interactive-labels-accent) 45%, var(--mindfula11y-input-border));
         border-radius: 999em;
     }
 
