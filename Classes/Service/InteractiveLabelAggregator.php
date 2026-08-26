@@ -25,13 +25,14 @@ final readonly class InteractiveLabelAggregator
 
     public function annotate(
         array $labels,
+        int $repeatedLabelThreshold = self::DEFAULT_REPEATED_THRESHOLD,
     ): array {
         if ($labels === []) {
             return [];
         }
 
         // Page-wide checks run against ALL labels.
-        $labels = $this->annotateRepeated($labels);
+        $labels = $this->annotateRepeated($labels, $repeatedLabelThreshold);
         $labels = $this->annotateDifferentTargets($labels);
 
         $findings = [];

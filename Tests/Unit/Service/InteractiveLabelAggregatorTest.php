@@ -192,6 +192,24 @@ final class InteractiveLabelAggregatorTest extends TestCase
     }
 
     #[Test]
+    public function repeatedLabelThresholdIsConfigurable(): void
+    {
+        $labels = [
+            $this->label(['uid' => 1, 'value' => 'weiter']),
+            $this->label(['uid' => 2, 'value' => 'weiter']),
+        ];
+
+        self::assertSame(
+            [],
+            $this->makeSubject()->annotate($labels, 3),
+            'two occurrences must not be flagged when the configured threshold is 3',
+        );
+
+        $findings = $this->makeSubject()->annotate($labels, 2);
+        self::assertCount(2, $findings, 'the default threshold of 2 still flags two occurrences');
+    }
+
+    #[Test]
     public function sameLabelWithDifferentTargetsIsPromotedOverRepetition(): void
     {
         // Different-targets is documented as the more specific rule and takes

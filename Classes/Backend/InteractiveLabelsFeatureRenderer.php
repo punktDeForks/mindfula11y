@@ -65,6 +65,21 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
                 $pageTsConfig,
             );
 
+        $additionalVagueLabels =
+            $this->moduleSettingsService->getAdditionalVagueLabels(
+                $pageTsConfig,
+            );
+
+        $ignoredLabels =
+            $this->moduleSettingsService->getIgnoredLabels(
+                $pageTsConfig,
+            );
+
+        $repeatedLabelThreshold =
+            $this->moduleSettingsService->getRepeatedLabelThreshold(
+                $pageTsConfig,
+            );
+
         $locale = $this->resolveLocale($context);
 
         $labels = [];
@@ -80,6 +95,8 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
                     $table,
                     $fields,
                     $type,
+                    $additionalVagueLabels,
+                    $ignoredLabels,
                 );
 
                 $labels = [
@@ -89,7 +106,7 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
             }
         }
 
-        $findings = $this->aggregator->annotate($labels);
+        $findings = $this->aggregator->annotate($labels, $repeatedLabelThreshold);
 
         $context->moduleTemplate->assignMultiple([
             'pageTsConfigDebug' => $pageTsConfig,

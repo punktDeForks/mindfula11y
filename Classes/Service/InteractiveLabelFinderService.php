@@ -28,6 +28,8 @@ final readonly class InteractiveLabelFinderService
      * with different targets need to see all labels.
      *
      * @param string[] $fields
+     * @param string[] $additionalVagueLabels Project-specific terms to flag alongside the built-in list.
+     * @param string[] $ignoredLabels Built-in (or additional) terms to exempt for this project.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -38,12 +40,14 @@ final readonly class InteractiveLabelFinderService
         string $table,
         array $fields,
         InteractiveLabelType $type,
+        array $additionalVagueLabels = [],
+        array $ignoredLabels = [],
     ): array {
         if ($table === '' || $fields === []) {
             return [];
         }
 
-        $rules = $this->ruleProvider->getRules($locale);
+        $rules = $this->ruleProvider->getRules($locale, $additionalVagueLabels, $ignoredLabels);
 
         $records = $this->repository->findByPage(
             $table,

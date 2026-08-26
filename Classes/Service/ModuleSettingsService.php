@@ -194,6 +194,53 @@ public function getInteractiveLabelFields(
 
     return $result;
 }
+
+    /**
+     * Get project-specific terms to flag as vague interactive labels,
+     * alongside the extension's built-in per-locale term list.
+     *
+     * @param array<string, mixed> $pageTsConfig
+     * @return string[]
+     */
+    public function getAdditionalVagueLabels(array $pageTsConfig): array
+    {
+        return GeneralUtility::trimExplode(
+            ',',
+            (string)($this->moduleTsConfig($pageTsConfig)['interactiveLabels']['additionalVagueLabels'] ?? ''),
+            true,
+        );
+    }
+
+    /**
+     * Get built-in (or project-specific) vague-label terms to exempt for this project.
+     *
+     * @param array<string, mixed> $pageTsConfig
+     * @return string[]
+     */
+    public function getIgnoredLabels(array $pageTsConfig): array
+    {
+        return GeneralUtility::trimExplode(
+            ',',
+            (string)($this->moduleTsConfig($pageTsConfig)['interactiveLabels']['ignoredLabels'] ?? ''),
+            true,
+        );
+    }
+
+    /**
+     * Get the occurrence count at which a repeated generic label is flagged.
+     * Mirrors InteractiveLabelAggregator::DEFAULT_REPEATED_THRESHOLD as the
+     * fallback so an unset or non-positive TSconfig value behaves the same
+     * as before this setting existed.
+     *
+     * @param array<string, mixed> $pageTsConfig
+     */
+    public function getRepeatedLabelThreshold(array $pageTsConfig): int
+    {
+        $threshold = (int)($this->moduleTsConfig($pageTsConfig)['interactiveLabels']['repeatedLabelThreshold'] ?? 2);
+
+        return $threshold >= 1 ? $threshold : 2;
+    }
+
     /**
      * Check if structure analysis may run on the page at all.
      *

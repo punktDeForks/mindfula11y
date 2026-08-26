@@ -19,6 +19,13 @@ mod {
         }
         interactiveLabels {
             enable = 1
+            # Additional project-specific terms to flag as vague, alongside
+            # the extension's built-in per-locale term list:
+            # additionalVagueLabels = now, follow this link
+            # Built-in (or additional) terms to exempt for this project:
+            # ignoredLabels = more, ok
+            # Occurrence count at which a repeated generic label is flagged:
+            # repeatedLabelThreshold = 3
         }
         scan {
             enable = 0

@@ -86,6 +86,12 @@ mod {
         landmarkStructure {
             enable = 1
         }
+        interactiveLabels {
+            enable = 1
+            # additionalVagueLabels = jetzt, hier entlang
+            # ignoredLabels = mehr, ok
+            # repeatedLabelThreshold = 3
+        }
         scan {
             enable = 0
             autoCreate = 1
@@ -118,6 +124,10 @@ TCEFORM.tt_content.tx_mindfula11y_landmark {
 | `mod.mindfula11y_accessibility.missingAltText.ignoreFileMetadata` | With `0` (default), editors can filter out references covered by file metadata alternative text, matching TYPO3's rendered `FileReference`. Set `1` to ignore metadata and require alternative text directly on every file reference. |
 | `mod.mindfula11y_accessibility.headingStructure.enable` | Enables heading structure checks in module. |
 | `mod.mindfula11y_accessibility.landmarkStructure.enable` | Enables landmark structure checks in module. |
+| `mod.mindfula11y_accessibility.interactiveLabels.enable` | Enables interactive labels (vague link/button text) checks in module. |
+| `mod.mindfula11y_accessibility.interactiveLabels.additionalVagueLabels` | Comma-separated project-specific terms flagged as vague, alongside the extension's built-in per-locale term list, e.g. `additionalVagueLabels = jetzt, hier entlang`. |
+| `mod.mindfula11y_accessibility.interactiveLabels.ignoredLabels` | Comma-separated built-in (or additional) terms exempted for this project, e.g. `ignoredLabels = mehr, ok`. |
+| `mod.mindfula11y_accessibility.interactiveLabels.repeatedLabelThreshold` | Occurrence count at which the same generic label used repeatedly on a page is flagged. Defaults to `2`. |
 | `mod.mindfula11y_accessibility.scan.enable` | Enables scanner feature in module. |
 | `mod.mindfula11y_accessibility.scan.autoCreate` | Auto-starts new scan on module load when content changed. |
 | `mod.mindfula11y_accessibility.scan.basicAuthUsername` | Deprecated — use the site setting `mindfula11y.scan.basicAuth.username` (see [Scanning pages behind HTTP Basic Authentication](#scanning-pages-behind-http-basic-authentication)). |
