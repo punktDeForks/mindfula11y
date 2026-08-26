@@ -6,6 +6,7 @@ namespace MindfulMarkup\MindfulA11y\Service;
 
 use MindfulMarkup\MindfulA11y\Domain\Repository\InteractiveLabelRepository;
 use MindfulMarkup\MindfulA11y\Enum\InteractiveLabelType;
+use TYPO3\CMS\Backend\Utility\BackendUtility;
 
 final readonly class InteractiveLabelFinderService
 {
@@ -15,6 +16,7 @@ final readonly class InteractiveLabelFinderService
         private InteractiveLabelRepository $repository,
         private InteractiveLabelRuleProvider $ruleProvider,
         private InteractiveLabelChecker $checker,
+        private PermissionService $permissionService,
     ) {
     }
 
@@ -51,9 +53,19 @@ final readonly class InteractiveLabelFinderService
             self::TARGET_FIELD,
         );
 
+        // Whole-table gate first: skip the per-record getRecordWSOL() calls
+        // below entirely when the user cannot write to this table at all.
+        $canWriteTable = $this->permissionService->checkTableWriteAccess($table);
+
         $labels = [];
 
         foreach ($records as $record) {
+            $uid = (int)($record['uid'] ?? 0);
+
+            $fullRecord = ($canWriteTable && $uid > 0)
+                ? BackendUtility::getRecordWSOL($table, $uid)
+                : null;
+
             $target = trim(
                 (string)($record[self::TARGET_FIELD] ?? ''),
             );
@@ -77,13 +89,21 @@ final readonly class InteractiveLabelFinderService
                     );
                 }
 
+                // Mirrors AltlessFileReferenceViewHelper's edit-access gate:
+                // the label input/save button (and edit-record link) are only
+                // offered to a user who could actually write this field.
+                $editable = $fullRecord !== null
+                    && $this->permissionService->checkNonExcludeFields($table, [$field])
+                    && $this->permissionService->checkRecordEditAccess($table, $fullRecord, [$field]);
+
                 $label = [
                     'table' => $table,
-                    'uid' => (int)($record['uid'] ?? 0),
+                    'uid' => $uid,
                     'field' => $field,
                     'value' => $value,
                     'type' => $type,
                     'target' => $target,
+                    'editable' => $editable,
 
                     // Tells the aggregator whether the normal
                     // per-label checker already found something.

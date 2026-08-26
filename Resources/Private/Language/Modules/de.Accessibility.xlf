@@ -441,10 +441,9 @@
 					Es wurden keine Probleme mit Beschriftungen interaktiver Elemente gefunden.
 				</target>
 			</trans-unit>
-			<trans-unit id="interactiveLabels.editRecord.label"
-						resname="interactiveLabels.editRecord.label">
-				<source>Edit record [%1$s][%2$s].</source>
-				<target>Datensatz bearbeiten [%1$s][%2$s].</target>
+			<trans-unit id="interactiveLabels.editRecord.label" resname="interactiveLabels.editRecord.label">
+				<source>Edit element</source>
+				<target>Element bearbeiten</target>
 			</trans-unit>
 
 			<trans-unit id="findings.rule.description.potentially_vague_interactive_label" resname="findings.rule.description.potentially_vague_interactive_label">
@@ -475,7 +474,18 @@
 				<source>Save</source>
 				<target>Speichern</target>
 			</trans-unit>
-
+			<trans-unit id="findings.save.success" resname="findings.save.success">
+				<source>Changes saved</source>
+				<target>Änderungen gespeichert</target>
+			</trans-unit>
+			<trans-unit id="findings.save.error" resname="findings.save.error">
+				<source>Could not save changes</source>
+				<target>Änderungen konnten nicht gespeichert werden</target>
+			</trans-unit>
+			<trans-unit id="findings.save.error.description" resname="findings.save.error.description">
+				<source>The change was not stored. Please try again or edit the record directly.</source>
+				<target>Die Änderung wurde nicht gespeichert. Bitte versuchen Sie es erneut oder bearbeiten Sie den Datensatz direkt.</target>
+			</trans-unit>
 			<trans-unit id="findings.rule.title.potentially_vague_interactive_label"
 						resname="findings.rule.title.potentially_vague_interactive_label">
 				<source>Potentially vague label</source>

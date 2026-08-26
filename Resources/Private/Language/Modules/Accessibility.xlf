@@ -355,9 +355,8 @@
 					No issues with interactive element labels were found.
 				</source>
 			</trans-unit>
-			<trans-unit id="interactiveLabels.editRecord.label"
-						resname="interactiveLabels.editRecord.label">
-				<source>Edit record [%1$s][%2$s].</source>
+			<trans-unit id="interactiveLabels.editRecord.label" resname="interactiveLabels.editRecord.label">
+				<source>Edit element</source>
 			</trans-unit>
 
 			<trans-unit id="findings.rule.description.potentially_vague_interactive_label" resname="findings.rule.description.potentially_vague_interactive_label">
@@ -378,6 +377,15 @@
 			</trans-unit>
 			<trans-unit id="findings.save" resname="findings.save">
 				<source>Save</source>
+			</trans-unit>
+			<trans-unit id="findings.save.success" resname="findings.save.success">
+				<source>Changes saved</source>
+			</trans-unit>
+			<trans-unit id="findings.save.error" resname="findings.save.error">
+				<source>Could not save changes</source>
+			</trans-unit>
+			<trans-unit id="findings.save.error.description" resname="findings.save.error.description">
+				<source>The change was not stored. Please try again or edit the record directly.</source>
 			</trans-unit>
 			<trans-unit id="findings.rule.title.potentially_vague_interactive_label"
 						resname="findings.rule.title.potentially_vague_interactive_label">

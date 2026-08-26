@@ -255,7 +255,7 @@ final readonly class InteractiveLabelAggregator
 
         if ($rule !== '') {
             $titleKey = self::LANGUAGE_FILE . 'findings.rule.title.' . $rule;
-            $descriptionKey = self::LANGUAGE_FILE . 'findings.rule.' . $rule;
+            $descriptionKey = self::LANGUAGE_FILE . 'findings.rule.description.' . $rule;
 
             $finding['ruleTitleKey'] = $titleKey;
             $finding['ruleDescriptionKey'] = $descriptionKey;
@@ -267,7 +267,7 @@ final readonly class InteractiveLabelAggregator
 
         if (!empty($finding['repeatedRule'])) {
             $titleKey = self::LANGUAGE_FILE . 'findings.rule.title.' . $finding['repeatedRule'];
-            $descriptionKey = self::LANGUAGE_FILE . 'findings.rule.' . $finding['repeatedRule'];
+            $descriptionKey = self::LANGUAGE_FILE . 'findings.rule.description.' . $finding['repeatedRule'];
 
             $finding['repeatedRuleTitleKey'] = $titleKey;
             $finding['repeatedRuleDescriptionKey'] = $descriptionKey;
@@ -279,7 +279,7 @@ final readonly class InteractiveLabelAggregator
 
         if (!empty($finding['differentTargetsRule'])) {
             $titleKey = self::LANGUAGE_FILE . 'findings.rule.title.' . $finding['differentTargetsRule'];
-            $descriptionKey = self::LANGUAGE_FILE . 'findings.rule.' . $finding['differentTargetsRule'];
+            $descriptionKey = self::LANGUAGE_FILE . 'findings.rule.description.' . $finding['differentTargetsRule'];
 
             $finding['differentTargetsRuleTitleKey'] = $titleKey;
             $finding['differentTargetsRuleDescriptionKey'] = $descriptionKey;

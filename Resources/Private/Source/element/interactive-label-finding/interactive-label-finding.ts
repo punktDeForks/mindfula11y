@@ -1,17 +1,31 @@
 import { lll } from '@typo3/core/lit-helper.js';
 import type { CSSResult, TemplateResult } from 'lit';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
+import { live } from 'lit/directives/live.js';
+import '@typo3/backend/element/icon-element.js';
+import '@typo3/backend/element/spinner-element.js';
 
 import '../notice/notice.js';
 
+import { renderSaveButton, renderSaveStatusRegion } from '../../lib/status-render.js';
+import { RecordApi } from '../../service/record-api.js';
+import { type ErrorView, errorView } from '../../service/request-error.js';
 import { baseStyles } from '../../styles/base-styles.js';
+import buttonStyles from '../../styles/button.css.js';
 import componentStyles from './interactive-label-finding.css.js';
 
 const REPEATED_RULE = 'repeated_generic_label';
 const DIFFERENT_TARGETS_RULE = 'generic_label_different_targets';
 
 interface InteractiveLabelFindingData {
+    table?: string;
+    uid?: number;
+    field?: string;
+    value?: string;
+    /** Whether the current backend user may write this field (PermissionService-gated). */
+    editable?: boolean;
+
     rule?: string;
 
     isRepeated?: boolean;
@@ -32,10 +46,25 @@ interface InteractiveLabelFindingData {
  */
 @customElement('mindfula11y-interactive-label-finding')
 export class InteractiveLabelFinding extends LitElement {
-    static override styles: CSSResult[] = [...baseStyles, componentStyles];
+    static override styles: CSSResult[] = [...baseStyles, buttonStyles, componentStyles];
 
     @property({ type: Object })
     finding: InteractiveLabelFindingData | null = null;
+
+    @state() private value: string = '';
+    @state() private lastSavedValue: string = '';
+    @state() private busy: 'idle' | 'saving' = 'idle';
+    @state() private saved: boolean = false;
+    @state() private actionError: ErrorView | null = null;
+
+    private readonly recordApi = new RecordApi();
+
+    protected override willUpdate(): void {
+        if (!this.hasUpdated) {
+            this.value = this.finding?.value ?? '';
+            this.lastSavedValue = this.value;
+        }
+    }
 
     override render(): TemplateResult | typeof nothing {
         const finding = this.finding;
@@ -45,6 +74,8 @@ export class InteractiveLabelFinding extends LitElement {
         }
 
         return html`
+      ${finding.editable ? this.renderEditor() : this.renderReadOnlyValue()}
+
       <div class="notices">
         ${this.renderPrimaryNotice(finding)}
 
@@ -57,7 +88,91 @@ export class InteractiveLabelFinding extends LitElement {
             finding.distinctTargetCount,
         )}
       </div>
+
+      ${finding.editable ? this.renderActions() : nothing}
     `;
+    }
+
+    private renderEditor(): TemplateResult {
+        return html`<div class="editor">
+            <label class="label" for="value">${lll('mindfula11y.findings.label')}</label>
+            <input
+                id="value"
+                type="text"
+                class="input"
+                .value=${live(this.value)}
+                ?readonly=${this.busy !== 'idle'}
+                @input=${this.handleInput}
+            />
+        </div>`;
+    }
+
+    /** Mirrors altless-file-reference's read-only fallback for a finding the current user cannot edit. */
+    private renderReadOnlyValue(): TemplateResult | typeof nothing {
+        if (this.value === '') {
+            return nothing;
+        }
+
+        return html`<dl class="editor">
+            <dt class="label">${lll('mindfula11y.findings.label')}</dt>
+            <dd class="readonly-value">${this.value}</dd>
+        </dl>`;
+    }
+
+    private renderActions(): TemplateResult {
+        return html`
+      <div class="actions">
+        ${renderSaveButton({
+            saving: this.busy === 'saving',
+            disabled: this.busy !== 'idle' || this.value === this.lastSavedValue,
+            labelKey: 'mindfula11y.findings.save',
+            onClick: () => this.handleSave(),
+        })}
+      </div>
+
+      ${renderSaveStatusRegion({
+          error: this.actionError,
+          saved: this.saved,
+          successLabelKey: 'mindfula11y.findings.save.success',
+      })}
+    `;
+    }
+
+    private handleInput(event: Event): void {
+        this.value = (event.target as HTMLInputElement).value;
+        this.saved = false;
+    }
+
+    private async handleSave(): Promise<void> {
+        // Mirrors the button's aria-disabled condition: the control stays
+        // focusable (a real `disabled` would blur a keyboard user to <body>
+        // for the whole async window), so the click handler is the guard.
+        if (this.busy !== 'idle' || this.value === this.lastSavedValue) {
+            return;
+        }
+
+        const finding = this.finding;
+
+        if (
+            finding?.editable !== true ||
+            finding.table === undefined ||
+            finding.field === undefined ||
+            finding.uid === undefined
+        ) {
+            return;
+        }
+
+        this.busy = 'saving';
+        this.actionError = null;
+        try {
+            await this.recordApi.updateFields(finding.table, finding.uid, { [finding.field]: this.value });
+            this.lastSavedValue = this.value;
+            this.saved = true;
+        } catch (error) {
+            this.actionError = errorView(error, 'mindfula11y.findings.save.error');
+        } finally {
+            this.busy = 'idle';
+        }
     }
 
     private renderPrimaryNotice(finding: InteractiveLabelFindingData): TemplateResult | typeof nothing {

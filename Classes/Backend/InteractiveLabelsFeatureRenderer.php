@@ -55,21 +55,6 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
     public function render(
         ModuleContext $context,
     ): ResponseInterface {
-        $testRules = $this->ruleProvider->getRules(
-            'de-DE',
-        );
-
-        $testIssue = $this->checker->check(
-            'Weiter',
-            InteractiveLabelType::BUTTON,
-            $testRules,
-        );
-
-        $context->moduleTemplate->assign(
-            'selfTestSuccessful',
-            $testIssue !== null,
-        );
-
         $pageTsConfig =
             $this->moduleSettingsService->getConvertedPageTsConfig(
                 $context->pageId,
