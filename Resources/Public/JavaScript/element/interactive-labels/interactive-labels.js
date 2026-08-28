@@ -12,10 +12,7 @@ import { lll } from "@typo3/core/lit-helper.js";
 import { html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import "../notice/notice.js";
-import {
-  impactState,
-  renderCountBadge
-} from "../../lib/status-render.js";
+import { impactState, renderCountBadge } from "../../lib/status-render.js";
 import { baseStyles } from "../../styles/base-styles.js";
 import findingsStyles from "../../styles/findings.css.js";
 import labelStyles from "./interactive-labels.css.js";
@@ -30,18 +27,14 @@ let InteractiveLabels = class extends LitElement {
       return html`
         <mindfula11y-notice state="success">
                     <span>
-                        ${lll(
-        "mindfula11y.interactiveLabels.noFindings"
-      )}
+                        ${lll("mindfula11y.interactiveLabels.noFindings")}
                     </span>
         </mindfula11y-notice>
       `;
     }
     return html`
       <div class="interactive-labels">
-        ${rows.map(
-      (row) => this.renderRow(row)
-    )}
+        ${rows.map((row) => this.renderRow(row))}
       </div>
     `;
   }
@@ -75,7 +68,7 @@ let InteractiveLabels = class extends LitElement {
   renderRow(row) {
     return html`
       <details class="interactive-label-row">
-        <summary>
+        <summary class="row-summary">
                 <span class="value">
                     ${row.value}
                 </span>
@@ -84,14 +77,11 @@ let InteractiveLabels = class extends LitElement {
                     ${row.ruleTitle}
                 </span>
 
-          ${renderCountBadge(
-      impactState(row.severity),
-      row.count
-    )}
+          ${renderCountBadge(impactState(row.severity), row.count)}
         </summary>
 
         <div class="rule-description">
-          <p>
+          <p class="rule-description-text">
             ${row.ruleDescription}
           </p>
         </div>
@@ -99,11 +89,7 @@ let InteractiveLabels = class extends LitElement {
     `;
   }
 };
-InteractiveLabels.styles = [
-  ...baseStyles,
-  findingsStyles,
-  labelStyles
-];
+InteractiveLabels.styles = [...baseStyles, findingsStyles, labelStyles];
 __decorateClass([
   property({ type: Array })
 ], InteractiveLabels.prototype, "findings", 2);
