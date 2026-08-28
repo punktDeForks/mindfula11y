@@ -214,4 +214,16 @@ final class ModuleSettingsServiceTest extends AbstractAuthorizationTestCase
 
         self::assertSame(2, $this->subject()->getRepeatedLabelThreshold($tsConfig));
     }
+
+    public function testAiReviewAccessDefaultsToDisabled(): void
+    {
+        self::assertFalse($this->subject()->hasInteractiveLabelAiReviewAccess([]));
+    }
+
+    public function testAiReviewAccessIsEnabledViaTsConfig(): void
+    {
+        $tsConfig = $this->interactiveLabelsTsConfig(['aiReview' => ['enable' => '1']]);
+
+        self::assertTrue($this->subject()->hasInteractiveLabelAiReviewAccess($tsConfig));
+    }
 }

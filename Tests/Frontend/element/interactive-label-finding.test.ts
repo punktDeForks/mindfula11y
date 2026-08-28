@@ -26,6 +26,14 @@ vi.mock('@typo3/core/ajax/ajax-request.js', () => ({
 vi.mock('@typo3/backend/element/icon-element.js', () => ({}));
 vi.mock('@typo3/backend/element/spinner-element.js', () => ({}));
 
+const { assessMock } = vi.hoisted(() => ({ assessMock: vi.fn() }));
+vi.mock('../../../Resources/Private/Source/service/interactive-label-ai-review-api.js', () => ({
+    // biome-ignore lint/style/useNamingConvention: matches the real InteractiveLabelAiReviewApi export name the component imports
+    InteractiveLabelAiReviewApi: class {
+        assess = assessMock;
+    },
+}));
+
 import type { InteractiveLabelFinding } from '../../../Resources/Private/Source/element/interactive-label-finding/interactive-label-finding.js';
 import '../../../Resources/Private/Source/element/interactive-label-finding/interactive-label-finding.js';
 
@@ -35,11 +43,18 @@ interface FindingFixture {
     field?: string;
     value?: string;
     editable?: boolean;
+    type?: string;
+    target?: string;
     rule?: string;
     isRepeated?: boolean;
     occurrenceCount?: number;
     hasDifferentTargets?: boolean;
     distinctTargetCount?: number;
+    aiReviewAvailable?: boolean;
+    pageId?: number;
+    pageTitle?: string;
+    surroundingContext?: string;
+    locale?: string;
 }
 
 const editableFinding = (overrides: FindingFixture = {}): FindingFixture => ({
@@ -62,9 +77,26 @@ const mount = async (finding: FindingFixture | null): Promise<InteractiveLabelFi
 const saveButton = (view: InteractiveLabelFinding): HTMLButtonElement | null =>
     view.renderRoot.querySelector<HTMLButtonElement>('.actions button');
 
+const aiReviewButton = (view: InteractiveLabelFinding): HTMLButtonElement | null =>
+    view.renderRoot.querySelector<HTMLButtonElement>('.ai-review > button');
+
+const aiReviewFinding = (overrides: FindingFixture = {}): FindingFixture =>
+    editableFinding({
+        type: 'button',
+        target: '',
+        rule: 'potentially_vague_interactive_label',
+        aiReviewAvailable: true,
+        pageId: 10,
+        pageTitle: 'Test page',
+        surroundingContext: '',
+        locale: 'de',
+        ...overrides,
+    });
+
 describe('InteractiveLabelFinding', () => {
     beforeEach(() => {
         processMock.mockReset();
+        assessMock.mockReset();
     });
 
     afterEach(() => {
@@ -210,5 +242,116 @@ describe('InteractiveLabelFinding', () => {
         const notices = view.renderRoot.querySelectorAll('mindfula11y-notice');
         expect(notices).toHaveLength(2);
         expect(notices[1]?.getAttribute('count')).toBe('3');
+    });
+
+    describe('AI context review', () => {
+        it('does not render the AI review button when the finding does not offer it', async () => {
+            const view = await mount(editableFinding());
+
+            expect(aiReviewButton(view)).toBeNull();
+        });
+
+        it('renders the AI review button when the finding offers it', async () => {
+            const view = await mount(aiReviewFinding());
+
+            expect(aiReviewButton(view)).not.toBeNull();
+        });
+
+        it('requests an assessment with the finding’s context and the current input value on click', async () => {
+            assessMock.mockResolvedValue({ assessment: 'likely_clear', reason: 'Clear enough.', suggestedLabel: null });
+            const view = await mount(aiReviewFinding({ value: 'weiter' }));
+
+            aiReviewButton(view)?.dispatchEvent(new Event('click'));
+            await view.updateComplete;
+            await new Promise((resolve) => setTimeout(resolve, 0));
+
+            expect(assessMock).toHaveBeenCalledWith({
+                pageId: 10,
+                label: 'weiter',
+                elementType: 'button',
+                target: '',
+                rule: 'potentially_vague_interactive_label',
+                pageTitle: 'Test page',
+                surroundingContext: '',
+                locale: 'de',
+            });
+        });
+
+        it('shows the AI opinion, its disclaimer, and an apply-suggestion action', async () => {
+            assessMock.mockResolvedValue({
+                assessment: 'likely_unclear',
+                reason: 'The label does not describe the destination.',
+                suggestedLabel: 'Informationen zur Bewerbung',
+            });
+            const view = await mount(aiReviewFinding());
+
+            aiReviewButton(view)?.dispatchEvent(new Event('click'));
+            await view.updateComplete;
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            await view.updateComplete;
+
+            const assessmentNotice = view.renderRoot.querySelector('.ai-assessment');
+            expect(assessmentNotice?.textContent).toContain('The label does not describe the destination.');
+            expect(assessmentNotice?.textContent).toContain('mindfula11y.findings.aiReview.disclaimer');
+            expect(assessmentNotice?.querySelector('button')?.textContent).toContain('Informationen zur Bewerbung');
+        });
+
+        it('applies the suggested label into the (unsaved) input without saving it', async () => {
+            processMock.mockResolvedValue({ hasErrors: false });
+            assessMock.mockResolvedValue({
+                assessment: 'likely_unclear',
+                reason: 'irrelevant',
+                suggestedLabel: 'Informationen zur Bewerbung',
+            });
+            const view = await mount(aiReviewFinding());
+
+            aiReviewButton(view)?.dispatchEvent(new Event('click'));
+            await view.updateComplete;
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            await view.updateComplete;
+            view.renderRoot
+                .querySelector<HTMLButtonElement>('.ai-assessment button')
+                ?.dispatchEvent(new Event('click'));
+            await view.updateComplete;
+
+            expect(view.renderRoot.querySelector<HTMLInputElement>('input')?.value).toBe('Informationen zur Bewerbung');
+            expect(saveButton(view)?.getAttribute('aria-disabled')).toBeNull();
+            expect(processMock).not.toHaveBeenCalled();
+        });
+
+        it('shows a danger notice when the AI review request fails', async () => {
+            assessMock.mockRejectedValue(new Error('network error'));
+            const view = await mount(aiReviewFinding());
+
+            aiReviewButton(view)?.dispatchEvent(new Event('click'));
+            await view.updateComplete;
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            await view.updateComplete;
+
+            expect(view.renderRoot.querySelector('.ai-review [state="danger"]')).not.toBeNull();
+        });
+
+        it('clears a previous AI opinion once the label is edited again', async () => {
+            assessMock.mockResolvedValue({ assessment: 'likely_clear', reason: 'ok', suggestedLabel: null });
+            const view = await mount(aiReviewFinding());
+
+            aiReviewButton(view)?.dispatchEvent(new Event('click'));
+            await view.updateComplete;
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            await view.updateComplete;
+            expect(view.renderRoot.querySelector('.ai-assessment')).not.toBeNull();
+
+            const input = view.renderRoot.querySelector<HTMLInputElement>('input');
+            expect(input).not.toBeNull();
+            if (input === null) {
+                return;
+            }
+
+            input.value = 'a different label';
+            input.dispatchEvent(new Event('input'));
+            await view.updateComplete;
+
+            expect(view.renderRoot.querySelector('.ai-assessment')).toBeNull();
+        });
     });
 });

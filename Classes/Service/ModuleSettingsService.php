@@ -146,6 +146,19 @@ final readonly class ModuleSettingsService
         return (bool) ($this->moduleTsConfig($pageTsConfig)['interactiveLabels']['enable'] ?? false);
     }
 
+    /**
+     * Check if the AI context review is offered for interactive-label
+     * findings. Opt-in and off by default, mirroring hasAiAuditAccess()'s
+     * scan.aiAudit.enable gate: an AI opinion is only offered where an
+     * integrator has explicitly asked for it.
+     *
+     * @param array<string, mixed> $pageTsConfig
+     */
+    public function hasInteractiveLabelAiReviewAccess(array $pageTsConfig): bool
+    {
+        return (bool)($this->moduleTsConfig($pageTsConfig)['interactiveLabels']['aiReview']['enable'] ?? false);
+    }
+
 /**
  * Get configured database fields containing interactive labels.
  *

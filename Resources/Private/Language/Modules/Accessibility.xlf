@@ -366,7 +366,7 @@
 				<source>The label contains only symbols and no textual description. Please review whether the meaning of the control is clear.</source>
 			</trans-unit>
 			<trans-unit id="findings.rule.description.repeated_generic_label" resname="findings.rule.description.repeated_generic_label">
-				<source>TThe same generic label is used multiple times on this page. Please review whether the labels can be made more descriptive.</source>
+				<source>The same generic label is used multiple times on this page. Please review whether the labels can be made more descriptive.</source>
 			</trans-unit>
 			<trans-unit id="findings.rule.description.generic_label_different_targets" resname="findings.rule.description.generic_label_different_targets">
 				<source>The same generic label is used for different destinations. Consider making the destination clear in each label.</source>
@@ -402,6 +402,52 @@
 			<trans-unit id="findings.rule.title.generic_label_different_targets"
 						resname="findings.rule.title.generic_label_different_targets">
 				<source>Same generic label with different targets</source>
+			</trans-unit>
+
+			<trans-unit id="findings.aiReview.button" resname="findings.aiReview.button">
+				<source>Assess with AI</source>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.assessing" resname="findings.aiReview.assessing">
+				<source>Assessing…</source>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.disclaimer" resname="findings.aiReview.disclaimer">
+				<source>AI opinion, not a final accessibility decision — please review before applying.</source>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.assessment.likely_clear" resname="findings.aiReview.assessment.likely_clear">
+				<source>Likely clear</source>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.assessment.likely_unclear" resname="findings.aiReview.assessment.likely_unclear">
+				<source>Likely unclear</source>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.assessment.uncertain" resname="findings.aiReview.assessment.uncertain">
+				<source>Uncertain</source>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.applySuggestion" resname="findings.aiReview.applySuggestion">
+				<source>Apply suggestion</source>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.error" resname="findings.aiReview.error">
+				<source>AI assessment failed</source>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.error.description" resname="findings.aiReview.error.description">
+				<source>Please try again, or review and edit the label yourself.</source>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.notAllowed" resname="interactiveLabels.aiReview.error.notAllowed">
+				<source>AI review is not enabled</source>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.notAllowed.description" resname="interactiveLabels.aiReview.error.notAllowed.description">
+				<source>An administrator has not enabled the AI context review for this page tree.</source>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.notConfigured" resname="interactiveLabels.aiReview.error.notConfigured">
+				<source>AI review is not configured</source>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.notConfigured.description" resname="interactiveLabels.aiReview.error.notConfigured.description">
+				<source>No OpenAI API key is configured for this installation.</source>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.openAIConnection" resname="interactiveLabels.aiReview.error.openAIConnection">
+				<source>AI assessment failed</source>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.openAIConnection.description" resname="interactiveLabels.aiReview.error.openAIConnection.description">
+				<source>The AI service could not be reached or returned an unexpected response. Please try again.</source>
 			</trans-unit>
 
 			<trans-unit id="structure.headings" resname="structure.headings">

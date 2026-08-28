@@ -48,4 +48,17 @@
     .status-region {
         margin-block-start: var(--mindfula11y-space-fixed-s);
     }
+
+    .ai-review {
+        display: flex;
+        flex-direction: column;
+        gap: var(--mindfula11y-space-fixed-2xs);
+        align-items: flex-start;
+        margin-block-start: var(--mindfula11y-space-fixed-s);
+    }
+
+    .ai-disclaimer {
+        display: block;
+        margin-block-start: var(--mindfula11y-space-2xs);
+    }
 }

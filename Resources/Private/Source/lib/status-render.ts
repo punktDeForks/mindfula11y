@@ -227,12 +227,14 @@ export const renderSaveButton = (options: {
     disabled: boolean;
     labelKey: string;
     onClick: () => void;
+    /** Icon shown while idle (swapped for a spinner while saving). Defaults to the save icon. */
+    icon?: string;
 }): TemplateResult =>
     html`<button type="button" class="button" aria-disabled=${options.disabled ? 'true' : nothing} @click=${options.onClick}>
         ${
             options.saving
                 ? html`<typo3-backend-spinner size="small"></typo3-backend-spinner>`
-                : html`<typo3-backend-icon identifier="actions-save" size="small"></typo3-backend-icon>`
+                : html`<typo3-backend-icon identifier=${options.icon ?? 'actions-save'} size="small"></typo3-backend-icon>`
         }
         ${lll(options.labelKey)}
     </button>`;

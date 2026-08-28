@@ -8,7 +8,10 @@ import '@typo3/backend/element/spinner-element.js';
 
 import '../notice/notice.js';
 
-import { renderSaveButton, renderSaveStatusRegion } from '../../lib/status-render.js';
+import type { NoticeState } from '../../lib/status-render.js';
+import { renderNoticeBody, renderSaveButton, renderSaveStatusRegion } from '../../lib/status-render.js';
+import type { InteractiveLabelAiReviewResult } from '../../service/interactive-label-ai-review-api.js';
+import { InteractiveLabelAiReviewApi } from '../../service/interactive-label-ai-review-api.js';
 import { RecordApi } from '../../service/record-api.js';
 import { type ErrorView, errorView } from '../../service/request-error.js';
 import { baseStyles } from '../../styles/base-styles.js';
@@ -18,6 +21,15 @@ import componentStyles from './interactive-label-finding.css.js';
 const REPEATED_RULE = 'repeated_generic_label';
 const DIFFERENT_TARGETS_RULE = 'generic_label_different_targets';
 
+/** Notice state per AI assessment — mirrors IMPACT_STATES' one-state-per-severity convention. */
+const AI_ASSESSMENT_STATES: Record<InteractiveLabelAiReviewResult['assessment'], NoticeState> = {
+    // biome-ignore lint/style/useNamingConvention: these are the exact wire values of the InteractiveLabelAssessment PHP enum, not identifiers to rename
+    likely_clear: 'success',
+    // biome-ignore lint/style/useNamingConvention: see likely_clear above
+    likely_unclear: 'warning',
+    uncertain: 'info',
+};
+
 interface InteractiveLabelFindingData {
     table?: string;
     uid?: number;
@@ -26,6 +38,8 @@ interface InteractiveLabelFindingData {
     /** Whether the current backend user may write this field (PermissionService-gated). */
     editable?: boolean;
 
+    type?: string;
+    target?: string;
     rule?: string;
 
     isRepeated?: boolean;
@@ -33,6 +47,18 @@ interface InteractiveLabelFindingData {
 
     hasDifferentTargets?: boolean;
     distinctTargetCount?: number;
+
+    /**
+     * Set only when InteractiveLabelsFeatureRenderer determined the AI
+     * context review is both enabled (Page TSconfig) and configured
+     * (OpenAI API key present) — its absence/false hides the feature
+     * entirely rather than showing a button that would just error.
+     */
+    aiReviewAvailable?: boolean;
+    pageId?: number;
+    pageTitle?: string;
+    surroundingContext?: string;
+    locale?: string;
 }
 
 /**
@@ -57,7 +83,12 @@ export class InteractiveLabelFinding extends LitElement {
     @state() private saved: boolean = false;
     @state() private actionError: ErrorView | null = null;
 
+    @state() private aiReviewBusy: boolean = false;
+    @state() private aiAssessment: InteractiveLabelAiReviewResult | null = null;
+    @state() private aiReviewError: ErrorView | null = null;
+
     private readonly recordApi = new RecordApi();
+    private readonly aiReviewApi = new InteractiveLabelAiReviewApi();
 
     protected override willUpdate(): void {
         if (!this.hasUpdated) {
@@ -90,6 +121,8 @@ export class InteractiveLabelFinding extends LitElement {
       </div>
 
       ${finding.editable ? this.renderActions() : nothing}
+
+      ${finding.editable ? this.renderAiReview(finding) : nothing}
     `;
     }
 
@@ -141,6 +174,10 @@ export class InteractiveLabelFinding extends LitElement {
     private handleInput(event: Event): void {
         this.value = (event.target as HTMLInputElement).value;
         this.saved = false;
+        // A prior AI opinion was about the label text as it stood then —
+        // once the editor changes it, that opinion no longer applies.
+        this.aiAssessment = null;
+        this.aiReviewError = null;
     }
 
     private async handleSave(): Promise<void> {
@@ -173,6 +210,109 @@ export class InteractiveLabelFinding extends LitElement {
         } finally {
             this.busy = 'idle';
         }
+    }
+
+    /**
+     * Asks the AI for a second opinion on the label as it currently stands
+     * in the input (not necessarily the saved value — an editor may want a
+     * reaction to a draft before saving it). Never touches the record and
+     * never applies anything on its own; see renderAiAssessmentResult() for
+     * the explicit "Apply suggestion" step the editor must take themselves.
+     */
+    private async handleAiReview(): Promise<void> {
+        if (this.aiReviewBusy) {
+            return;
+        }
+
+        const finding = this.finding;
+        if (finding?.aiReviewAvailable !== true || finding.pageId === undefined || this.value === '') {
+            return;
+        }
+
+        this.aiReviewBusy = true;
+        this.aiReviewError = null;
+        this.aiAssessment = null;
+        try {
+            this.aiAssessment = await this.aiReviewApi.assess({
+                pageId: finding.pageId,
+                label: this.value,
+                elementType: finding.type ?? '',
+                target: finding.target ?? '',
+                rule: finding.rule ?? '',
+                pageTitle: finding.pageTitle ?? '',
+                surroundingContext: finding.surroundingContext ?? '',
+                locale: finding.locale ?? 'en',
+            });
+        } catch (error) {
+            this.aiReviewError = errorView(error, 'mindfula11y.findings.aiReview.error');
+        } finally {
+            this.aiReviewBusy = false;
+        }
+    }
+
+    /**
+     * Copies the AI's suggestion into the (still unsaved) input field only —
+     * mirrors handleInput()'s dirty-marking exactly, so the existing Save
+     * button/RecordApi flow is the only thing that ever persists it.
+     */
+    private handleApplySuggestion(): void {
+        const suggestedLabel = this.aiAssessment?.suggestedLabel;
+        if (suggestedLabel == null) {
+            return;
+        }
+
+        this.value = suggestedLabel;
+        this.saved = false;
+    }
+
+    private renderAiReview(finding: InteractiveLabelFindingData): TemplateResult | typeof nothing {
+        if (finding.aiReviewAvailable !== true) {
+            return nothing;
+        }
+
+        return html`
+      <div class="ai-review">
+        ${renderSaveButton({
+            saving: this.aiReviewBusy,
+            disabled: this.aiReviewBusy || this.value === '',
+            labelKey: this.aiReviewBusy
+                ? 'mindfula11y.findings.aiReview.assessing'
+                : 'mindfula11y.findings.aiReview.button',
+            icon: 'actions-refresh',
+            onClick: () => this.handleAiReview(),
+        })}
+
+        ${
+            this.aiReviewError !== null
+                ? html`<mindfula11y-notice class="status" state="danger">${renderNoticeBody(this.aiReviewError)}</mindfula11y-notice>`
+                : nothing
+        }
+
+        ${this.aiAssessment !== null ? this.renderAiAssessmentResult(this.aiAssessment) : nothing}
+      </div>
+    `;
+    }
+
+    private renderAiAssessmentResult(assessment: InteractiveLabelAiReviewResult): TemplateResult {
+        return html`
+      <mindfula11y-notice class="ai-assessment" state=${AI_ASSESSMENT_STATES[assessment.assessment]}>
+        <span>
+          <strong>${lll(`mindfula11y.findings.aiReview.assessment.${assessment.assessment}`)}</strong>
+          <br />
+          ${assessment.reason}
+          <br />
+          <em class="ai-disclaimer">${lll('mindfula11y.findings.aiReview.disclaimer')}</em>
+        </span>
+
+        ${
+            assessment.suggestedLabel !== null
+                ? html`<button type="button" class="button" slot="trailing" @click=${(): void => this.handleApplySuggestion()}>
+                  ${lll('mindfula11y.findings.aiReview.applySuggestion')}: “${assessment.suggestedLabel}”
+              </button>`
+                : nothing
+        }
+      </mindfula11y-notice>
+    `;
     }
 
     private renderPrimaryNotice(finding: InteractiveLabelFindingData): TemplateResult | typeof nothing {

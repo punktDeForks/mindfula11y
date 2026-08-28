@@ -10,10 +10,10 @@ use MindfulMarkup\MindfulA11y\Enum\InteractiveLabelType;
 use MindfulMarkup\MindfulA11y\Service\InteractiveLabelFinderService;
 use MindfulMarkup\MindfulA11y\Service\ModuleSettingsService;
 use Psr\Http\Message\ResponseInterface;
-use TYPO3\CMS\Core\Site\Entity\SiteLanguage;
 use MindfulMarkup\MindfulA11y\Service\InteractiveLabelChecker;
 use MindfulMarkup\MindfulA11y\Service\InteractiveLabelRuleProvider;
 use MindfulMarkup\MindfulA11y\Service\InteractiveLabelAggregator;
+use MindfulMarkup\MindfulA11y\Service\OpenAIService;
 use TYPO3\CMS\Core\Page\PageRenderer;
 
 final readonly class InteractiveLabelsFeatureRenderer implements FeatureRendererInterface
@@ -26,6 +26,7 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
         private BackendPageLanguageService $backendPageLanguageService,
         private InteractiveLabelAggregator $aggregator,
         private PageRenderer $pageRenderer,
+        private OpenAIService $openAIService,
     ) {
     }
     private function resolveLocale(ModuleContext $context): string
@@ -108,6 +109,28 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
 
         $findings = $this->aggregator->annotate($labels, $repeatedLabelThreshold);
 
+        $aiReviewAvailable = $this->moduleSettingsService->hasInteractiveLabelAiReviewAccess($pageTsConfig)
+            && $this->openAIService->isApiKeyConfigured();
+
+        if ($aiReviewAvailable) {
+            $pageTitle = (string)($context->getPreviewPageInfo()['title'] ?? '');
+
+            $findings = array_map(
+                fn (array $finding): array => [
+                    ...$finding,
+                    'pageId' => $context->pageId,
+                    'pageTitle' => $pageTitle,
+                    'locale' => $locale,
+                    'surroundingContext' => $this->buildSurroundingContext(
+                        (string)($finding['table'] ?? ''),
+                        (string)($finding['field'] ?? ''),
+                    ),
+                    'aiReviewAvailable' => true,
+                ],
+                $findings,
+            );
+        }
+
         $context->moduleTemplate->assignMultiple([
             'pageTsConfigDebug' => $pageTsConfig,
             'fieldsConfig' => $fieldsConfig,
@@ -130,5 +153,23 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
         return $context->moduleTemplate->renderResponse(
             'Backend/InteractiveLabels',
         );
+    }
+
+    /**
+     * The only "surrounding context" cheaply available at render time: the
+     * record type and field the label lives in (e.g. "Text & Media, Button
+     * label").
+     */
+    private function buildSurroundingContext(string $table, string $field): string
+    {
+        if ($table === '') {
+            return '';
+        }
+
+        $languageService = $GLOBALS['LANG'];
+        $tableTitle = $languageService->sL($GLOBALS['TCA'][$table]['ctrl']['title'] ?? $table);
+        $fieldLabel = $languageService->sL($GLOBALS['TCA'][$table]['columns'][$field]['label'] ?? $field);
+
+        return trim($tableTitle . ($fieldLabel !== '' ? ', ' . $fieldLabel : ''));
     }
 }

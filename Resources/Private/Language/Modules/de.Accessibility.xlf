@@ -507,6 +507,67 @@
 				<target>Gleiche, allgemeine Beschriftung mit unterschiedlichen Zielen</target>
 			</trans-unit>
 
+			<trans-unit id="findings.aiReview.button" resname="findings.aiReview.button">
+				<source>Assess with AI</source>
+				<target>Mit KI bewerten</target>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.assessing" resname="findings.aiReview.assessing">
+				<source>Assessing…</source>
+				<target>Wird bewertet …</target>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.disclaimer" resname="findings.aiReview.disclaimer">
+				<source>AI opinion, not a final accessibility decision — please review before applying.</source>
+				<target>KI-Einschätzung, keine endgültige Barrierefreiheits-Entscheidung — bitte vor der Übernahme prüfen.</target>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.assessment.likely_clear" resname="findings.aiReview.assessment.likely_clear">
+				<source>Likely clear</source>
+				<target>Wahrscheinlich verständlich</target>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.assessment.likely_unclear" resname="findings.aiReview.assessment.likely_unclear">
+				<source>Likely unclear</source>
+				<target>Wahrscheinlich unklar</target>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.assessment.uncertain" resname="findings.aiReview.assessment.uncertain">
+				<source>Uncertain</source>
+				<target>Unklar/unsicher</target>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.applySuggestion" resname="findings.aiReview.applySuggestion">
+				<source>Apply suggestion</source>
+				<target>Vorschlag übernehmen</target>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.error" resname="findings.aiReview.error">
+				<source>AI assessment failed</source>
+				<target>KI-Bewertung fehlgeschlagen</target>
+			</trans-unit>
+			<trans-unit id="findings.aiReview.error.description" resname="findings.aiReview.error.description">
+				<source>Please try again, or review and edit the label yourself.</source>
+				<target>Bitte versuchen Sie es erneut, oder bearbeiten Sie die Beschriftung selbst.</target>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.notAllowed" resname="interactiveLabels.aiReview.error.notAllowed">
+				<source>AI review is not enabled</source>
+				<target>KI-Bewertung ist nicht aktiviert</target>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.notAllowed.description" resname="interactiveLabels.aiReview.error.notAllowed.description">
+				<source>An administrator has not enabled the AI context review for this page tree.</source>
+				<target>Ein Administrator hat die KI-Kontextbewertung für diesen Seitenbaum nicht aktiviert.</target>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.notConfigured" resname="interactiveLabels.aiReview.error.notConfigured">
+				<source>AI review is not configured</source>
+				<target>KI-Bewertung ist nicht konfiguriert</target>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.notConfigured.description" resname="interactiveLabels.aiReview.error.notConfigured.description">
+				<source>No OpenAI API key is configured for this installation.</source>
+				<target>Für diese Installation ist kein OpenAI-API-Schlüssel konfiguriert.</target>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.openAIConnection" resname="interactiveLabels.aiReview.error.openAIConnection">
+				<source>AI assessment failed</source>
+				<target>KI-Bewertung fehlgeschlagen</target>
+			</trans-unit>
+			<trans-unit id="interactiveLabels.aiReview.error.openAIConnection.description" resname="interactiveLabels.aiReview.error.openAIConnection.description">
+				<source>The AI service could not be reached or returned an unexpected response. Please try again.</source>
+				<target>Der KI-Dienst war nicht erreichbar oder hat eine unerwartete Antwort geliefert. Bitte versuchen Sie es erneut.</target>
+			</trans-unit>
+
             <trans-unit id="structure.headings" resname="structure.headings">
                 <source>Headings</source>
                 <target>Überschriften</target>
