@@ -125,6 +125,10 @@ final readonly class OverviewViewStateFactory
 
             $fieldsConfig = $this->moduleSettingsService->getInteractiveLabelFields($pageTsConfig);
 
+            $additionalVagueLabels = $this->moduleSettingsService->getAdditionalVagueLabels($pageTsConfig);
+            $ignoredLabels = $this->moduleSettingsService->getIgnoredLabels($pageTsConfig);
+            $repeatedLabelThreshold = $this->moduleSettingsService->getRepeatedLabelThreshold($pageTsConfig);
+
             $labels = [];
 
             foreach (InteractiveLabelType::cases() as $type) {
@@ -140,12 +144,14 @@ final readonly class OverviewViewStateFactory
                             $table,
                             $fields,
                             $type,
+                            $additionalVagueLabels,
+                            $ignoredLabels,
                         ),
                     ];
                 }
             }
 
-            $interactiveLabelFindings = $this->interactiveLabelAggregator->annotate($labels);
+            $interactiveLabelFindings = $this->interactiveLabelAggregator->annotate($labels, $repeatedLabelThreshold);
             $interactiveLabelCount = count($interactiveLabelFindings);
             $interactiveLabelUri = $this->buildFeatureUri(Feature::INTERACTIVE_LABELS, $pageId, $languageId);
         }
