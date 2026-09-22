@@ -52,7 +52,8 @@ final readonly class InteractiveLabelContextReviewAjaxController
         private ModuleSettingsService $moduleSettingsService,
         private OpenAIService $openAIService,
         private PermissionService $permissionService,
-    ) {}
+    ) {
+    }
 
     public function assessAction(ServerRequestInterface $request): ResponseInterface
     {

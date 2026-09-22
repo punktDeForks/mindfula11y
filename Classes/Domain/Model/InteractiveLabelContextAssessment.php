@@ -19,5 +19,6 @@ final readonly class InteractiveLabelContextAssessment
         public InteractiveLabelAssessment $assessment,
         public string $reason,
         public ?string $suggestedLabel,
-    ) {}
+    ) {
+    }
 }

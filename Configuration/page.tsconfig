@@ -23,7 +23,13 @@ mod {
             # the extension's built-in per-locale term list:
             # additionalVagueLabels = now, follow this link
             # Built-in (or additional) terms to exempt for this project:
-            # ignoredLabels = more, ok
+            ignoredLabels = more, ok
+            # Field holding the link/href a label points to, per table —
+            # enables the "identical label, different targets" check for
+            # that table. No default: the field name is project-specific.
+            # targetFields {
+            #     <table> = <field>
+            # }
             # Occurrence count at which a repeated generic label is flagged:
             # repeatedLabelThreshold = 3
             aiReview {
@@ -32,7 +38,7 @@ mod {
                 # reuses the same OpenAI setup as alt-text generation, no
                 # scanner/MindfulAPI involved. Advisory only: never a final
                 # WCAG decision, never applied without the editor's own save.
-                enable = 0
+                enable = 1
             }
         }
         scan {

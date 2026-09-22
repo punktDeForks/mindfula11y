@@ -72,10 +72,6 @@ final readonly class InteractiveLabelRepository
                 ),
             );
 
-        /*
-         * Get the language field configured for this table.
-         * Usually this is "sys_language_uid".
-         */
         $languageField =
             $GLOBALS['TCA'][$table]['ctrl']['languageField'] ?? null;
 

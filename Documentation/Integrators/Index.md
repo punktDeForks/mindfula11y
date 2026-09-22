@@ -91,6 +91,9 @@ mod {
             # additionalVagueLabels = jetzt, hier entlang
             # ignoredLabels = mehr, ok
             # repeatedLabelThreshold = 3
+            # targetFields {
+            #     <table> = <field>
+            # }
             aiReview {
                 # Offer an "Assess with AI" opinion on already rule-flagged labels.
                 # Requires openAIApiKey (Extension Configuration) — reuses the same
@@ -140,6 +143,9 @@ mod.mindfula11y_accessibility {
                 tx_myext_cta_element = button_label
             }
         }
+        targetFields {
+            tx_myext_cta_element = button_link
+        }
         additionalVagueLabels = jetzt, hier entlang
     }
 }
@@ -157,6 +163,8 @@ Either way, every option documented below is a Page TSconfig path under `mod.min
 | `mod.mindfula11y_accessibility.headingStructure.enable` | Enables heading structure checks in module. |
 | `mod.mindfula11y_accessibility.landmarkStructure.enable` | Enables landmark structure checks in module. |
 | `mod.mindfula11y_accessibility.interactiveLabels.enable` | Enables interactive labels (vague link/button text) checks in module. |
+| `mod.mindfula11y_accessibility.interactiveLabels.fields` | Table/field combinations to scan, per element type: `fields { button { <table> = <field>,<field> } }`. No default — required to get any findings. |
+| `mod.mindfula11y_accessibility.interactiveLabels.targetFields` | Field holding the link/href a label points to, per table: `targetFields { <table> = <field> }`. Enables the "identical label, different targets" check for that table; a table without an entry here never triggers it. No default — the field name is project-specific. |
 | `mod.mindfula11y_accessibility.interactiveLabels.additionalVagueLabels` | Comma-separated project-specific terms flagged as vague, alongside the extension's built-in per-locale term list, e.g. `additionalVagueLabels = jetzt, hier entlang`. |
 | `mod.mindfula11y_accessibility.interactiveLabels.ignoredLabels` | Comma-separated built-in (or additional) terms exempted for this project, e.g. `ignoredLabels = mehr, ok`. |
 | `mod.mindfula11y_accessibility.interactiveLabels.repeatedLabelThreshold` | Occurrence count at which the same generic label used repeatedly on a page is flagged. Defaults to `2`. |

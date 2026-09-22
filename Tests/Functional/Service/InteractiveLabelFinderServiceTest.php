@@ -126,6 +126,38 @@ final class InteractiveLabelFinderServiceTest extends AbstractAuthorizationTestC
         self::assertSame('header', $label['field']);
     }
 
+    /**
+     * The target field name is no longer a hardcoded constant — it is
+     * threaded through from the caller (Page TSconfig
+     * `interactiveLabels.targetFields`, resolved by ModuleSettingsService)
+     * per table. `CType` stands in for a real link field here only to prove
+     * the value flows through to the 'target' key; it need not be
+     * link-shaped for that.
+     */
+    public function testTargetFieldIsReadWhenConfigured(): void
+    {
+        $this->logInBackendUser(2);
+
+        $labels = $this->subject()->find(
+            10,
+            0,
+            'en',
+            'tt_content',
+            ['header'],
+            InteractiveLabelType::BUTTON,
+            targetField: 'CType',
+        );
+
+        self::assertSame('textmedia', $this->labelByUid($labels, 100)['target']);
+    }
+
+    public function testTargetDefaultsToEmptyWithoutConfiguration(): void
+    {
+        $this->logInBackendUser(2);
+
+        self::assertSame('', $this->labelByUid($this->findOnPage10(), 100)['target']);
+    }
+
     public function testAdminMayEditEveryFindingIncludingRecordEditLocked(): void
     {
         // Anti-vacuous baseline for testFullEditorMayEditOrdinaryContentButNotARecordEditLockedOne:

@@ -25,7 +25,8 @@ final readonly class InteractiveLabelContextReviewService
     public function __construct(
         private OpenAIService $openAIService,
         private LoggerInterface $logger,
-    ) {}
+    ) {
+    }
 
     /**
      * Assess whether a label is likely understandable given its context, and

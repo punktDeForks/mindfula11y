@@ -50,7 +50,6 @@ use TYPO3\CMS\Core\Site\SiteFinder;
  */
 final readonly class OverviewViewStateFactory
 {
-
     public function __construct(
         private ModuleSettingsService $moduleSettingsService,
         private PagePreviewService $pagePreviewService,
@@ -65,7 +64,8 @@ final readonly class OverviewViewStateFactory
         private StructureAnalysisFramingService $framingService,
         private UriBuilder $backendUriBuilder,
         private PageRenderer $pageRenderer,
-    ) {}
+    ) {
+    }
 
     /**
      * Build the template variables for the overview card.
@@ -128,6 +128,7 @@ final readonly class OverviewViewStateFactory
             $additionalVagueLabels = $this->moduleSettingsService->getAdditionalVagueLabels($pageTsConfig);
             $ignoredLabels = $this->moduleSettingsService->getIgnoredLabels($pageTsConfig);
             $repeatedLabelThreshold = $this->moduleSettingsService->getRepeatedLabelThreshold($pageTsConfig);
+            $targetFieldsConfig = $this->moduleSettingsService->getInteractiveLabelTargetFields($pageTsConfig);
 
             $labels = [];
 
@@ -146,6 +147,7 @@ final readonly class OverviewViewStateFactory
                             $type,
                             $additionalVagueLabels,
                             $ignoredLabels,
+                            $targetFieldsConfig[$table] ?? '',
                         ),
                     ];
                 }

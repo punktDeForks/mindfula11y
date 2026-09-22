@@ -10,8 +10,6 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 
 final readonly class InteractiveLabelFinderService
 {
-    private const TARGET_FIELD = 'button_link';
-
     public function __construct(
         private InteractiveLabelRepository $repository,
         private InteractiveLabelRuleProvider $ruleProvider,
@@ -30,6 +28,11 @@ final readonly class InteractiveLabelFinderService
      * @param string[] $fields
      * @param string[] $additionalVagueLabels Project-specific terms to flag alongside the built-in list.
      * @param string[] $ignoredLabels Built-in (or additional) terms to exempt for this project.
+     * @param string $targetField Field holding the link/href this label points to, used for the
+     *   "identical label, different targets" check (Page TSconfig
+     *   `interactiveLabels.targetFields`, resolved by ModuleSettingsService). Empty when the
+     *   integrator has not configured one for this table — the different-targets check then
+     *   simply never fires for these records, same as before this setting existed.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -42,6 +45,7 @@ final readonly class InteractiveLabelFinderService
         InteractiveLabelType $type,
         array $additionalVagueLabels = [],
         array $ignoredLabels = [],
+        string $targetField = '',
     ): array {
         if ($table === '' || $fields === []) {
             return [];
@@ -54,7 +58,7 @@ final readonly class InteractiveLabelFinderService
             $fields,
             $pageId,
             $languageId,
-            self::TARGET_FIELD,
+            $targetField !== '' ? $targetField : null,
         );
 
         // Whole-table gate first: skip the per-record getRecordWSOL() calls
@@ -70,9 +74,9 @@ final readonly class InteractiveLabelFinderService
                 ? BackendUtility::getRecordWSOL($table, $uid)
                 : null;
 
-            $target = trim(
-                (string)($record[self::TARGET_FIELD] ?? ''),
-            );
+            $target = $targetField !== ''
+                ? trim((string)($record[$targetField] ?? ''))
+                : '';
 
             foreach ($fields as $field) {
                 $value = trim(

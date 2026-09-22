@@ -31,7 +31,7 @@ use RuntimeException;
 
 /**
  * Class OpenAIService.
- * 
+ *
  * This class is responsible for interacting with OpenAI's API.
  */
 final readonly class OpenAIService
@@ -46,16 +46,17 @@ final readonly class OpenAIService
         private ExtensionConfiguration $extensionConfiguration,
         private RequestFactory $requestFactory,
         private LoggerInterface $logger,
-    ) {}
+    ) {
+    }
 
     /**
      * Generate a response via the OpenAI Responses API (/v1/responses).
-     * 
+     *
      * All supported models (gpt-5.4-mini, gpt-5.4-nano, gpt-5-mini, gpt-5-nano, gpt-5.1, gpt-5.2) are
      * served exclusively through this endpoint. The `instructions` parameter carries
      * the system prompt; image content items use type `input_image` with a plain
      * string `image_url` and a `detail` level.
-     * 
+     *
      * @param string $instructions The system instructions for the model.
      * @param array  $messages     Array of message objects, each with `role` and `content`.
      * @param array{name: string, schema: array<string, mixed>}|null $jsonSchema
@@ -130,7 +131,7 @@ final readonly class OpenAIService
 
     /**
      * Get the configured OpenAI model name.
-     * 
+     *
      * @return string The OpenAI model name.
      */
     private function getModelName(): string
@@ -159,7 +160,7 @@ final readonly class OpenAIService
 
     /**
      * Get OpenAI API key from extension configuration.
-     * 
+     *
      * @return string The OpenAI API key.
      */
     private function getApiKey(): string
@@ -169,9 +170,9 @@ final readonly class OpenAIService
 
     /**
      * Check if the file extension is supported for vision input.
-     * 
+     *
      * @param string $extension
-     * 
+     *
      * @return bool
      */
     public function isFileExtSupported(string $extension): bool
@@ -182,7 +183,7 @@ final readonly class OpenAIService
 
     /**
      * Is OpenAI service enabled and configured.
-     * 
+     *
      * @return bool True if enabled and configured, false otherwise.
      */
     public function isEnabledAndConfigured(): bool

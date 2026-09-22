@@ -42,7 +42,8 @@ final readonly class ModuleLabelService
     public function __construct(
         private LanguageServiceFactory $languageServiceFactory,
         private BackendUserProvider $backendUserProvider,
-    ) {}
+    ) {
+    }
 
     public const LANGUAGE_FILE = 'LLL:EXT:mindfula11y/Resources/Private/Language/Modules/Accessibility.xlf:';
 

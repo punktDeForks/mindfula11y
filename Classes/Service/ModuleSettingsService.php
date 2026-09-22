@@ -43,7 +43,8 @@ final readonly class ModuleSettingsService
         private PermissionService $permissionService,
         private SiteFinder $siteFinder,
         private TypoScriptService $typoScriptService,
-    ) {}
+    ) {
+    }
 
     /**
      * Get converted (dot-free) Page TSconfig for the given page.
@@ -166,47 +167,90 @@ final readonly class ModuleSettingsService
  *
  * @return array<string, array<string, string[]>>
  */
-public function getInteractiveLabelFields(
-    array $pageTsConfig,
-): array {
-    $configuration = $this->moduleTsConfig($pageTsConfig)
-    ['interactiveLabels']['fields']
+    public function getInteractiveLabelFields(
+        array $pageTsConfig,
+    ): array {
+        $configuration = $this->moduleTsConfig($pageTsConfig)
+        ['interactiveLabels']['fields']
         ?? [];
 
-    if (!is_array($configuration)) {
-        return [];
-    }
-
-    $result = [];
-
-    foreach (InteractiveLabelType::cases() as $type) {
-        $tables = $configuration[$type->value] ?? [];
-
-        if (!is_array($tables)) {
-            continue;
+        if (!is_array($configuration)) {
+            return [];
         }
 
-        foreach ($tables as $table => $fields) {
+        $result = [];
+
+        foreach (InteractiveLabelType::cases() as $type) {
+            $tables = $configuration[$type->value] ?? [];
+
+            if (!is_array($tables)) {
+                continue;
+            }
+
+            foreach ($tables as $table => $fields) {
+                if (!is_string($table) || $table === '') {
+                    continue;
+                }
+
+                $fieldNames = GeneralUtility::trimExplode(
+                    ',',
+                    (string)$fields,
+                    true,
+                );
+
+                if ($fieldNames === []) {
+                    continue;
+                }
+
+                $result[$type->value][$table] = $fieldNames;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get the configured target field per table, used by the
+     * "identical label, different targets" check to read where an
+     * interactive element points to. Mirrors missingAltText.ignoreColumns'
+     * per-table shape rather than living beside the label fields themselves:
+     * a table can hold several label fields (`interactiveLabels.fields`) but
+     * has only one link/href field to compare targets against.
+     *
+     * A table with no entry here simply never triggers the different-targets
+     * check — there is no extension-wide default field name, since the field
+     * holding an element's destination is project-specific.
+     *
+     * @param array<string, mixed> $pageTsConfig
+     *
+     * @return array<string, string> Table => field name.
+     */
+    public function getInteractiveLabelTargetFields(array $pageTsConfig): array
+    {
+        $configuration = $this->moduleTsConfig($pageTsConfig)['interactiveLabels']['targetFields'] ?? [];
+
+        if (!is_array($configuration)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($configuration as $table => $field) {
             if (!is_string($table) || $table === '') {
                 continue;
             }
 
-            $fieldNames = GeneralUtility::trimExplode(
-                ',',
-                (string)$fields,
-                true,
-            );
+            $field = trim((string)$field);
 
-            if ($fieldNames === []) {
+            if ($field === '') {
                 continue;
             }
 
-            $result[$type->value][$table] = $fieldNames;
+            $result[$table] = $field;
         }
-    }
 
-    return $result;
-}
+        return $result;
+    }
 
     /**
      * Get project-specific terms to flag as vague interactive labels,

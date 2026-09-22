@@ -81,6 +81,11 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
                 $pageTsConfig,
             );
 
+        $targetFieldsConfig =
+            $this->moduleSettingsService->getInteractiveLabelTargetFields(
+                $pageTsConfig,
+            );
+
         $locale = $this->resolveLocale($context);
 
         $labels = [];
@@ -98,6 +103,7 @@ final readonly class InteractiveLabelsFeatureRenderer implements FeatureRenderer
                     $type,
                     $additionalVagueLabels,
                     $ignoredLabels,
+                    $targetFieldsConfig[$table] ?? '',
                 );
 
                 $labels = [

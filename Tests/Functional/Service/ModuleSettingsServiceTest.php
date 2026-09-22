@@ -215,6 +215,35 @@ final class ModuleSettingsServiceTest extends AbstractAuthorizationTestCase
         self::assertSame(2, $this->subject()->getRepeatedLabelThreshold($tsConfig));
     }
 
+    public function testTargetFieldsDefaultToEmpty(): void
+    {
+        self::assertSame([], $this->subject()->getInteractiveLabelTargetFields([]));
+    }
+
+    public function testTargetFieldsReadPerTable(): void
+    {
+        $tsConfig = $this->interactiveLabelsTsConfig([
+            'targetFields' => [
+                'tx_myext_cta_element' => 'button_link',
+                'tt_content' => ' header_link ',
+            ],
+        ]);
+
+        self::assertSame(
+            ['tx_myext_cta_element' => 'button_link', 'tt_content' => 'header_link'],
+            $this->subject()->getInteractiveLabelTargetFields($tsConfig),
+        );
+    }
+
+    public function testTargetFieldsIgnoreBlankValues(): void
+    {
+        $tsConfig = $this->interactiveLabelsTsConfig([
+            'targetFields' => ['tx_myext_cta_element' => '   '],
+        ]);
+
+        self::assertSame([], $this->subject()->getInteractiveLabelTargetFields($tsConfig));
+    }
+
     public function testAiReviewAccessDefaultsToDisabled(): void
     {
         self::assertFalse($this->subject()->hasInteractiveLabelAiReviewAccess([]));

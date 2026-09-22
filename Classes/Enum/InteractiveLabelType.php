@@ -6,5 +6,6 @@ namespace MindfulMarkup\MindfulA11y\Enum;
 
 enum InteractiveLabelType: string
 {
+    case LINK = 'link';
     case BUTTON = 'button';
 }
